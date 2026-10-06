@@ -1,0 +1,10 @@
+# Secrets and build output
+.env
+backend/.env
+target/
+.tools/
+node_modules/
+dist/
+.idea/
+*.iml
+.vscode/
