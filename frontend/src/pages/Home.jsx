@@ -1,7 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
+const features = [
+  ['🏘️', 'Community', 'Connect with people around you and stay updated with what’s happening nearby.'],
+  ['🛠️', 'Local Services', 'Find plumbers, electricians, tutors, cleaners and other trusted professionals.'],
+  ['🛍️', 'Marketplace', 'Buy and sell useful second-hand items within your neighborhood.'],
+  ['📣', 'Local Updates', 'Stay informed about announcements, events, maintenance and community news.'],
+  ['★', 'Trusted Recommendations', 'Discover and review local businesses and service providers.'],
+  ['🚨', 'Help Your Padosi', 'Share lost & found notices, emergency updates and requests for help.']
+];
+
+const steps = [
+  ['01', 'Join your neighborhood', 'Choose your locality, apartment, or housing society.'],
+  ['02', 'Meet your Padosis', 'Connect with people and discover what’s happening around you.'],
+  ['03', 'Make neighborhood life easier', 'Find services, share updates, buy locally, and help your community.']
+];
+
 const Home = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <>
       <div className="page-glow glow-one"></div>
@@ -11,14 +43,21 @@ const Home = () => {
           <a className="brand" href="#home" aria-label="Padosi home">
             <img className="brand-logo" src="/logo.png" alt="Padosi logo" /><span>Padosi</span>
           </a>
-          <button className="menu-toggle" aria-label="Open menu" aria-expanded="false"><span></span><span></span></button>
-          <div className="nav-links" id="navLinks">
-            <a className="active" href="#home">Home</a>
-            <a href="#about">About</a>
-            <a href="#how-it-works">How It Works</a>
+          <button 
+            className="menu-toggle" 
+            aria-label="Open menu" 
+            aria-expanded={isMenuOpen}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            <span></span><span></span>
+          </button>
+          <div className={`nav-links ${isMenuOpen ? 'open' : ''}`} id="navLinks">
+            <a className="active" href="#home" onClick={() => setIsMenuOpen(false)}>Home</a>
+            <a href="#about" onClick={() => setIsMenuOpen(false)}>About</a>
+            <a href="#how-it-works" onClick={() => setIsMenuOpen(false)}>How It Works</a>
             <div className="nav-actions">
-              <Link to="/login" className="login">Log in</Link>
-              <Link to="/register" className="button button-small">Join Padosi <span>→</span></Link>
+              <Link to="/login" className="login" onClick={() => setIsMenuOpen(false)}>Log in</Link>
+              <Link to="/register" className="button button-small" onClick={() => setIsMenuOpen(false)}>Join Padosi <span>→</span></Link>
             </div>
           </div>
         </nav>
@@ -33,7 +72,6 @@ const Home = () => {
             <p className="hero-text">Connect with your neighborhood, discover trusted local services, share updates, and build a stronger community — all in one place.</p>
             <div className="hero-actions">
               <Link to="/register" className="button">Join your neighborhood <span>→</span></Link>
-              <a className="text-button" href="#preview">Explore Padosi <i>↗</i></a>
             </div>
             <div className="trust-row">
               <div className="avatar-stack"><b>R</b><b>M</b><b>A</b><b>+</b></div>
@@ -75,7 +113,14 @@ const Home = () => {
             <p>Life gets simpler when the people and places around you are easy to reach.</p>
           </div>
           <div className="feature-grid" id="featureGrid">
-             {/* Note: I am omitting the dynamically generated content here for brevity. This would normally be static React elements or dynamic mapping. */}
+            {features.map(([icon, title, text], i) => (
+              <article className="feature-card reveal" key={i}>
+                <span className={`feature-icon icon-${i}`}>{icon}</span>
+                <h3>{title}</h3>
+                <p>{text}</p>
+                <a href="#">Explore <span>→</span></a>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -89,7 +134,16 @@ const Home = () => {
               <p>From your first hello to your hundredth helping hand, Padosi keeps your community close.</p>
             </div>
             <div className="steps" id="steps">
-               {/* Note: Omitted dynamic steps content for brevity */}
+              {steps.map(([number, title, text]) => (
+                <article className="step reveal" key={number}>
+                  <span>{number}</span>
+                  <div className="step-orb">
+                    {number === '01' ? '⌂' : number === '02' ? '♡' : '✦'}
+                  </div>
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
@@ -105,7 +159,10 @@ const Home = () => {
       </main>
       <footer>
         <div className="container footer-main">
-          <div><a className="brand footer-brand" href="#home"><img className="brand-logo" src="/logo.png" alt="" /><span>Padosi</span></a>
+          <div>
+            <a className="brand footer-brand" href="#home">
+              <img className="brand-logo" src="/logo.png" alt="" /><span>Padosi</span>
+            </a>
             <p>Pados se Phechan</p><small>Building better neighborhoods, together.</small>
           </div>
           <div className="footer-links">
