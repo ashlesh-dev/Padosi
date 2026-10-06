@@ -125,7 +125,7 @@ const AppShell = () => {
           <span style={{ width: '32px' }} />
         </header>
 
-        <main style={{ flex: 1, padding: '2rem 2.5rem', maxWidth: '900px' }}>
+        <main style={{ flex: 1, padding: '2rem 1.5rem', maxWidth: '100%' }}>
           <Outlet />
         </main>
       </div>

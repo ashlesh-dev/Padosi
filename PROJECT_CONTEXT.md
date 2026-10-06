@@ -48,13 +48,17 @@
     *   Step 2: Backend setup (Entities, Repositories, PostGIS integration).
     *   Step 3: Authentication APIs (JWT generation, BCrypt hashing, Login/Register endpoints).
     *   Step 4: Frontend scaffolding (React, Vite, Router, Axios, AuthContext, Home, Login, Register, Profile pages).
-*   **In Progress**: Transitioning to Step 5 (Radius-filtered APIs/UI).
-*   **Exact Next Step**: Implement the REST APIs and UI components for fetching posts, services, marketplace items, and alerts based on the user's location (radius filtering).
+    *   Step 5 (Community Feed): Full Instagram-style feed with likes, comments, radius filtering, and pagination.
+        *   **Backend**: `GET /api/posts` (paginated, radius-filtered, returns likeCount/commentCount/likedByMe/distanceKm), `POST /api/posts`, `DELETE /api/posts/{id}`, `POST /api/posts/{id}/like` (toggle), `GET /api/posts/{id}/comments`, `POST /api/posts/{id}/comments`.
+        *   **Frontend**: `Feed.jsx` redesigned — create post box (modal-style), radius pills (1/5/10 km), Instagram-style `PostCard` with optimistic like toggle + rollback, expandable inline comments, skeleton loaders, empty state, Load More pagination.
+        *   `PostType` enum extended with `QUESTION` and `RECOMMENDATION`.
+        *   `PostResponse` DTO extended with `likeCount`, `commentCount`, `likedByMe`, `distanceKm`, `authorId`, `imageUrl`.
+        *   Image URL field is **temporary**: users paste a URL; real Supabase Storage uploads deferred to Step 6.
+*   **Next Step**: Step 6 — Image uploads via Supabase Storage for posts and profiles.
 
 ## 7. Remaining Roadmap
-*   **Step 5**: Radius-filtered APIs/UI (Community feed, Marketplace, Services).
-*   **Step 6**: Image uploads (Integrating Supabase Storage bucket for posts/profiles).
-*   **Step 7**: Creating and interacting with posts (likes, comments).
+*   **Step 6**: Image uploads (Integrating Supabase Storage bucket for posts/profiles — replace the temp URL field with a real file picker).
+*   **Step 7**: Radius-filtered APIs/UI for Marketplace, Services, and Alerts tabs.
 *   **Step 8**: User Search & Profile viewing.
 *   **Step 9**: Testing and polishing.
 

@@ -8,6 +8,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PostLikeRepository extends JpaRepository<PostLike, PostLikeId> {
 
+    /** How many likes does a post have? */
     long countByIdPostId(Long postId);
-}
 
+    /** Did a specific user like a specific post? */
+    boolean existsByIdPostIdAndIdUserId(Long postId, Long userId);
+}
