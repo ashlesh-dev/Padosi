@@ -9,5 +9,7 @@ import org.springframework.stereotype.Repository;
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     List<Comment> findByPostIdOrderByCreatedAtAsc(Long postId);
-}
 
+    /** Count how many comments a post has (used for commentCount in feed). */
+    long countByPostId(Long postId);
+}
