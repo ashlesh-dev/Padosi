@@ -12,4 +12,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     /** Count how many comments a post has (used for commentCount in feed). */
     long countByPostId(Long postId);
+
+    /** Total comments made by a user — used for the public profile stat. */
+    long countByAuthorId(Long authorId);
 }

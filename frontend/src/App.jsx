@@ -10,6 +10,7 @@ import Marketplace from './pages/Marketplace';
 import Services from './pages/Services';
 import Alerts from './pages/Alerts';
 import LostFound from './pages/LostFound';
+import UserProfilePage from './pages/UserProfilePage';
 
 /** Wraps routes that require a logged-in user. */
 const ProtectedRoute = ({ children }) => {
@@ -46,6 +47,8 @@ function App() {
         <Route path="services" element={<Services />} />
         <Route path="alerts" element={<Alerts />} />
         <Route path="lost-found" element={<LostFound />} />
+        {/* Public user profiles — accessible from anywhere inside the app shell */}
+        <Route path="users/:userId" element={<UserProfilePage />} />
       </Route>
     </Routes>
   );

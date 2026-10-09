@@ -15,6 +15,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     List<Post> findByAuthorIdOrderByCreatedAtDesc(Long authorId);
 
+    /** Total posts created by a user — used for the public profile stat. */
+    long countByAuthorId(Long authorId);
+
     /**
      * Fetch all posts whose location is within :radiusMeters of the given point.
      * Results are newest first. Uses PostGIS ST_DWithin on the geography column.

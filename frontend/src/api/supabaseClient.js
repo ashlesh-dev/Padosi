@@ -44,6 +44,22 @@ export async function uploadPostImage(file, userId) {
   return data.publicUrl;
 }
 
+export const MARKETPLACE_BUCKET = 'marketplace-images';
+
+export async function uploadMarketplaceImage(file, userId) {
+  const ext = file.name.split('.').pop();
+  const path = `${userId}/${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(MARKETPLACE_BUCKET)
+    .upload(path, file, { cacheControl: '3600', upsert: false });
+
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from(MARKETPLACE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /**
  * Delete an image from Supabase Storage given its public URL.
  * 

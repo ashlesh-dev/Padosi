@@ -13,4 +13,7 @@ public interface PostLikeRepository extends JpaRepository<PostLike, PostLikeId> 
 
     /** Did a specific user like a specific post? */
     boolean existsByIdPostIdAndIdUserId(Long postId, Long userId);
+
+    /** Total likes given by a user — participation signal for behaviour score. */
+    long countByIdUserId(Long userId);
 }
