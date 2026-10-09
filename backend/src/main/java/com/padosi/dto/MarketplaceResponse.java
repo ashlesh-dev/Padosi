@@ -17,9 +17,15 @@ public record MarketplaceResponse(
         String category,
         String itemCondition,
         String status,
-        Instant createdAt
+        Instant createdAt,
+        String imageUrl,
+        boolean isSaved
 ) {
-    public static MarketplaceResponse from(MarketplaceListing m) {
+    public static MarketplaceResponse from(MarketplaceListing m, boolean isSaved) {
+        String primaryImage = null;
+        if (m.getImages() != null && !m.getImages().isEmpty()) {
+            primaryImage = m.getImages().get(0).getImageUrl();
+        }
         return new MarketplaceResponse(
                 m.getId(),
                 m.getSeller().getFullName(),
@@ -31,7 +37,9 @@ public record MarketplaceResponse(
                 m.getCategory().name(),
                 m.getItemCondition().name(),
                 m.getStatus().name(),
-                m.getCreatedAt()
+                m.getCreatedAt(),
+                primaryImage,
+                isSaved
         );
     }
 }
