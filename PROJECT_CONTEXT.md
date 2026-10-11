@@ -57,9 +57,15 @@
 *   **Next Step**: Step 6 — Image uploads via Supabase Storage for posts and profiles.
 
 ## 7. Remaining Roadmap
-*   **Step 6**: Image uploads (Integrating Supabase Storage bucket for posts/profiles — replace the temp URL field with a real file picker).
-*   **Step 7**: Radius-filtered APIs/UI for Marketplace, Services, and Alerts tabs.
-*   **Step 8**: User Search & Profile viewing.
+*   **Step 6**: Image uploads (Integrating Supabase Storage bucket for posts/profiles — replace the temp URL field with a real file picker). ✅
+*   **Step 7**: Radius-filtered APIs/UI for Marketplace, Services, and Alerts tabs. ✅
+*   **Step 8**: User Profile & Trust Score. ✅
+    *   `GET /api/users/{id}` — public profile (name, bio, locality, member since, post count, likes given, comments, behaviour score)
+    *   `GET /api/users/{id}/posts` — paginated post history
+    *   `UserProfilePage.jsx` — Instagram-style profile with animated SVG score ring, stat pills, skeleton loaders, post feed
+    *   `UserService.computeBehaviourScore()` — transparent saturation-curve algorithm (base 5 + participation signals, max 10)
+    *   Feed author names & avatars are now clickable profile links
+    *   Sidebar "My Profile" link added to AppShell
 *   **Step 9**: Testing and polishing.
 
 ## 8. How to Run
