@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axiosInstance';
 import { uploadPostImage, deletePostImage } from '../api/supabaseClient';
@@ -329,11 +330,21 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 
       {/* ── HEADER ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem 1rem' }}>
-        <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size={42} />
+        {/* Clickable avatar → author's profile */}
+        <Link to={`/app/users/${post.authorId}`} style={{ flexShrink: 0, display: 'block' }}>
+          <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size={42} />
+        </Link>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--ink)', lineHeight: 1.2 }}>
+          {/* Clickable author name → profile */}
+          <Link
+            to={`/app/users/${post.authorId}`}
+            style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--ink)', lineHeight: 1.2,
+              textDecoration: 'none', display: 'block' }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--teal)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--ink)'}
+          >
             {post.authorName}
-          </div>
+          </Link>
           <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.1rem' }}>
             {post.localityName}
             {post.distanceKm > 0 && ` · ${post.distanceKm} km away`}

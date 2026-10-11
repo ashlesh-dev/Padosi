@@ -232,7 +232,7 @@ create table marketplace_listings (
   updated_at  timestamptz not null default now(),
   constraint chk_listing_price check (price >= 0),
   constraint chk_listing_category check (category in
-    ('FURNITURE','ELECTRONICS','BOOKS','CLOTHING','VEHICLES','HOME','OTHER')),
+    ('FURNITURE','ELECTRONICS','BOOKS','CLOTHING','HOME','OTHER')),
   constraint chk_listing_condition check (item_condition in ('NEW','LIKE_NEW','GOOD','FAIR')),
   constraint chk_listing_status check (status in ('AVAILABLE','SOLD'))
 );
