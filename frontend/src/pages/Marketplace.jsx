@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axiosInstance';
 import { uploadMarketplaceImage } from '../api/supabaseClient';
@@ -161,8 +162,32 @@ const CreateListingModal = ({ onClose, onListingCreated, user }) => {
 };
 
 const ListingDetailModal = ({ listing, onClose, onReport }) => {
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [reportReason, setReportReason] = useState('INAPPROPRIATE');
   const [isReporting, setIsReporting] = useState(false);
+  const [isMessaging, setIsMessaging] = useState(false);
+
+  const handleMessageSeller = async () => {
+    if (user && listing.sellerId && user.id === listing.sellerId) {
+      alert("This is your own listing.");
+      return;
+    }
+    setIsMessaging(true);
+    try {
+      const res = await api.post('/chat/conversations', {
+        listingId: listing.id,
+        recipientId: listing.sellerId
+      });
+      onClose();
+      navigate(`/app/chats?conversationId=${res.data.id}`);
+    } catch (err) {
+      console.error('Failed to initiate conversation', err);
+      alert(err.response?.data?.message || 'Failed to start conversation with seller.');
+    } finally {
+      setIsMessaging(false);
+    }
+  };
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(16, 41, 70, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }} onClick={onClose}>
@@ -218,8 +243,11 @@ const ListingDetailModal = ({ listing, onClose, onReport }) => {
                  </div>
               </div>
               
-              <button style={{ width: '100%', padding: '0.85rem', backgroundColor: 'var(--teal)', color: 'white', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '1rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                ✉️ Message Seller
+              <button 
+                onClick={handleMessageSeller} 
+                disabled={isMessaging}
+                style={{ width: '100%', padding: '0.85rem', backgroundColor: 'var(--teal)', color: 'white', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '1rem', border: 'none', cursor: isMessaging ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem', opacity: isMessaging ? 0.8 : 1 }}>
+                {isMessaging ? 'Opening Chat...' : '✉️ Message Seller'}
               </button>
 
               <div style={{ backgroundColor: 'var(--cream)', padding: '1rem', borderRadius: '0.5rem' }}>

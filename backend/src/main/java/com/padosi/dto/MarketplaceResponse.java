@@ -19,7 +19,8 @@ public record MarketplaceResponse(
         String status,
         Instant createdAt,
         String imageUrl,
-        boolean isSaved
+        boolean isSaved,
+        Long sellerId
 ) {
     public static MarketplaceResponse from(MarketplaceListing m, boolean isSaved) {
         String primaryImage = null;
@@ -39,7 +40,8 @@ public record MarketplaceResponse(
                 m.getStatus().name(),
                 m.getCreatedAt(),
                 primaryImage,
-                isSaved
+                isSaved,
+                m.getSeller().getId()
         );
     }
 }

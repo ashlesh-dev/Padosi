@@ -1,12 +1,29 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import api from '../api/axiosInstance';
 
 /** The persistent sidebar + topbar shell for all logged-in pages. */
 const AppShell = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let intervalId;
+    const fetchUnread = async () => {
+      try {
+        const res = await api.get('/chat/unread-count');
+        setUnreadCount(res.data?.unreadCount || 0);
+      } catch (_err) {
+        // Silently ignore
+      }
+    };
+    fetchUnread();
+    intervalId = setInterval(fetchUnread, 10000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -16,6 +33,7 @@ const AppShell = () => {
   const navItems = [
     { to: '/app/feed',        icon: '⌘',  label: 'Community Feed' },
     { to: '/app/marketplace', icon: '♧',  label: 'Marketplace' },
+    { to: '/app/chats',       icon: '💬', label: 'Chats', badge: unreadCount },
     { to: '/app/services',    icon: '♡',  label: 'Local Services' },
     { to: '/app/alerts',      icon: '⚠',  label: 'Emergency Alerts' },
     { to: '/app/lost-found',  icon: '◌',  label: 'Lost & Found' },
@@ -64,7 +82,7 @@ const AppShell = () => {
 
         {/* Nav links */}
         <nav style={{ flex: 1, padding: '1rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {navItems.map(({ to, icon, label }) => (
+          {navItems.map(({ to, icon, label, badge }) => (
             <NavLink
               key={to}
               to={to}
@@ -83,7 +101,20 @@ const AppShell = () => {
               })}
             >
               <span style={{ fontSize: '1.1rem', width: '20px', textAlign: 'center' }}>{icon}</span>
-              {label}
+              <span style={{ flex: 1 }}>{label}</span>
+              {badge > 0 && (
+                <span style={{
+                  backgroundColor: 'var(--orange)',
+                  color: '#fff',
+                  borderRadius: '999px',
+                  fontSize: '0.72rem',
+                  fontWeight: '700',
+                  padding: '0.1rem 0.45rem',
+                  lineHeight: '1.2'
+                }}>
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

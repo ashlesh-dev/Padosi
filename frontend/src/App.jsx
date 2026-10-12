@@ -11,6 +11,7 @@ import Services from './pages/Services';
 import Alerts from './pages/Alerts';
 import LostFound from './pages/LostFound';
 import UserProfilePage from './pages/UserProfilePage';
+import Chats from './pages/Chats';
 
 /** Wraps routes that require a logged-in user. */
 const ProtectedRoute = ({ children }) => {
@@ -44,6 +45,7 @@ function App() {
         <Route index element={<Navigate to="feed" replace />} />
         <Route path="feed" element={<Feed />} />
         <Route path="marketplace" element={<Marketplace />} />
+        <Route path="chats" element={<Chats />} />
         <Route path="services" element={<Services />} />
         <Route path="alerts" element={<Alerts />} />
         <Route path="lost-found" element={<LostFound />} />
