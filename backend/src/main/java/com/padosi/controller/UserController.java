@@ -6,6 +6,7 @@ import com.padosi.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST endpoints for public user profiles.
@@ -46,5 +47,19 @@ public class UserController {
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "12") int size) {
         return userService.getUserPosts(id, page, size);
+    }
+
+    /**
+     * PATCH /api/users/me/avatar
+     * Updates the logged-in user's avatar URL (called after Supabase Storage upload).
+     * Body: { "avatarUrl": "https://..." }
+     */
+    @PatchMapping("/me/avatar")
+    public Map<String, String> updateAvatar(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal Long userId,
+            @RequestBody Map<String, String> body) {
+        String newUrl = body.get("avatarUrl");
+        userService.updateAvatarUrl(userId, newUrl);
+        return Map.of("avatarUrl", newUrl != null ? newUrl : "");
     }
 }

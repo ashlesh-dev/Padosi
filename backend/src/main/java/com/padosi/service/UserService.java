@@ -32,26 +32,19 @@ import java.util.List;
 @Service
 public class UserService {
 
-    // ── Score weights (tunable) ──────────────────────────────────────────────
+    // ── Score weights ────────────────────────────────────────────────────────
 
     /** A base score every member starts with (representing "good faith"). */
     private static final double BASE_SCORE = 5.0;
 
-    /** Extra points per post, up to this cap contribution. */
-    private static final double POST_MAX_CONTRIBUTION   = 2.5;
-    private static final int    POST_SATURATION         = 20;  // 20+ posts = full contribution
+    /** Internal safety cap on Padosi Score. */
+    private static final double MAX_SCORE = 1000.0;
 
-    /** Extra points for likes given, up to this cap. */
-    private static final double LIKE_MAX_CONTRIBUTION   = 0.75;
-    private static final int    LIKE_SATURATION         = 50;
+    /** Extra points for comment helpful votes received (+5 per vote). */
+    private static final double POINTS_PER_COMMENT_HELPFUL = 5.0;
 
-    /** Extra points for comments, up to this cap. */
-    private static final double COMMENT_MAX_CONTRIBUTION = 1.5;
-    private static final int    COMMENT_SATURATION       = 30;
-
-    /** Extra points for account age (days), up to this cap. */
-    private static final double AGE_MAX_CONTRIBUTION     = 0.25;
-    private static final int    AGE_SATURATION_DAYS      = 90;  // 3 months = full age bonus
+    /** Extra points for chat helpful votes received (+5 per vote). */
+    private static final double POINTS_PER_CHAT_HELPFUL = 5.0;
 
     // ── Dependencies ─────────────────────────────────────────────────────────
 
@@ -59,15 +52,21 @@ public class UserService {
     private final PostRepository        postRepository;
     private final PostLikeRepository    postLikeRepository;
     private final CommentRepository     commentRepository;
+    private final CommentHelpfulVoteRepository commentHelpfulVoteRepository;
+    private final MessageHelpfulVoteRepository messageHelpfulVoteRepository;
 
     public UserService(UserRepository userRepository,
                        PostRepository postRepository,
                        PostLikeRepository postLikeRepository,
-                       CommentRepository commentRepository) {
+                       CommentRepository commentRepository,
+                       CommentHelpfulVoteRepository commentHelpfulVoteRepository,
+                       MessageHelpfulVoteRepository messageHelpfulVoteRepository) {
         this.userRepository     = userRepository;
         this.postRepository     = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository  = commentRepository;
+        this.commentHelpfulVoteRepository = commentHelpfulVoteRepository;
+        this.messageHelpfulVoteRepository = messageHelpfulVoteRepository;
     }
 
     // ── Public profile ───────────────────────────────────────────────────────
@@ -80,19 +79,21 @@ public class UserService {
     public UserProfileResponse getPublicProfile(Long targetUserId) {
         User user = findUser(targetUserId);
 
-        int  postCount      = (int) postRepository.countByAuthorId(targetUserId);
-        int  likesGiven     = (int) postLikeRepository.countByIdUserId(targetUserId);
-        int  commentsPosted = (int) commentRepository.countByAuthorId(targetUserId);
+        int  postCount              = (int) postRepository.countByAuthorId(targetUserId);
+        int  likesGiven             = (int) postLikeRepository.countByIdUserId(targetUserId);
+        int  commentsPosted         = (int) commentRepository.countByAuthorId(targetUserId);
+        int  commentHelpfulReceived = (int) commentHelpfulVoteRepository.countHelpfulVotesReceivedByUser(targetUserId);
+        int  messageHelpfulReceived = (int) messageHelpfulVoteRepository.countHelpfulVotesReceivedByUser(targetUserId);
 
         // Account age in days
         long ageDays = java.time.Duration
                 .between(user.getCreatedAt(), java.time.Instant.now())
                 .toDays();
 
-        double score = computeBehaviourScore(postCount, likesGiven, commentsPosted, (int) ageDays);
+        double score = computeBehaviourScore(postCount, likesGiven, commentsPosted,
+                commentHelpfulReceived, messageHelpfulReceived, (int) ageDays);
 
         // Only postCount and the final score are exposed publicly.
-        // Raw activity numbers (likesGiven, commentsPosted) stay server-side.
         return UserProfileResponse.from(user, postCount, score);
     }
 
@@ -122,31 +123,35 @@ public class UserService {
     // ── Behaviour Score ───────────────────────────────────────────────────────
 
     /**
-     * Compute a score 1–10.
-     *
-     * Uses a "logarithmic saturation" approach so that the first few actions
-     * count a lot, but spamming does not inflate the score indefinitely.
+     * Compute Padosi Behaviour Score.
+     * Starting score is 5.0.
+     * Each helpful vote received on comments adds +5.
+     * Each helpful vote received in chats adds +5.
+     * Score increases unlimitedly (internal limit 1000.0).
      */
-    double computeBehaviourScore(int posts, int likesGiven, int comments, int ageDays) {
+    double computeBehaviourScore(int posts, int likesGiven, int comments,
+                                  int commentHelpfulVotes, int messageHelpfulVotes, int ageDays) {
         double score = BASE_SCORE;
-        score += saturate(posts,       POST_SATURATION,    POST_MAX_CONTRIBUTION);
-        score += saturate(likesGiven,  LIKE_SATURATION,    LIKE_MAX_CONTRIBUTION);
-        score += saturate(comments,    COMMENT_SATURATION, COMMENT_MAX_CONTRIBUTION);
-        score += saturate(ageDays,     AGE_SATURATION_DAYS, AGE_MAX_CONTRIBUTION);
+        score += (commentHelpfulVotes * POINTS_PER_COMMENT_HELPFUL);
+        score += (messageHelpfulVotes * POINTS_PER_CHAT_HELPFUL);
 
-        // Clamp to [1.0, 10.0] and round to one decimal place
-        score = Math.max(1.0, Math.min(10.0, score));
+        // Floor at 5.0 (starting score) and cap at internal limit 1000.0
+        score = Math.max(BASE_SCORE, Math.min(MAX_SCORE, score));
         return Math.round(score * 10.0) / 10.0;
     }
 
+    // ── Avatar Update ─────────────────────────────────────────────────────────
+
     /**
-     * Linearly saturates the contribution of a counter:
-     *   0 → 0, saturationPoint → maxContribution, beyond → maxContribution (capped).
+     * Saves a new avatar URL for the logged-in user.
+     * The actual upload is done on the frontend via Supabase Storage;
+     * this just persists the resulting public URL.
      */
-    private double saturate(int value, int saturationPoint, double maxContribution) {
-        if (value <= 0)               return 0.0;
-        if (value >= saturationPoint) return maxContribution;
-        return maxContribution * ((double) value / saturationPoint);
+    @Transactional
+    public void updateAvatarUrl(Long userId, String avatarUrl) {
+        User user = findUser(userId);
+        user.setAvatarUrl(avatarUrl);
+        userRepository.save(user);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

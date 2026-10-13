@@ -17,7 +17,8 @@ const ProviderCard = ({ provider }) => (
       width: '48px', height: '48px', borderRadius: '50%',
       backgroundColor: 'var(--teal)', color: '#fff',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: '700', fontSize: '1.1rem', flexShrink: 0
+      fontWeight: '700', fontSize: '1.1rem', flexShrink: 0,
+      textDecoration: 'none', userSelect: 'none'
     }}>
       {provider.providerName?.charAt(0).toUpperCase() || '?'}
     </div>

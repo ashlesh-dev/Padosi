@@ -4,9 +4,11 @@ import com.padosi.dto.*;
 import com.padosi.entity.Conversation;
 import com.padosi.entity.MarketplaceListing;
 import com.padosi.entity.Message;
+import com.padosi.entity.MessageHelpfulVote;
 import com.padosi.entity.User;
 import com.padosi.repository.ConversationRepository;
 import com.padosi.repository.MarketplaceListingRepository;
+import com.padosi.repository.MessageHelpfulVoteRepository;
 import com.padosi.repository.MessageRepository;
 import com.padosi.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ChatService {
@@ -24,15 +27,18 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final MarketplaceListingRepository listingRepository;
+    private final MessageHelpfulVoteRepository messageHelpfulVoteRepository;
 
     public ChatService(ConversationRepository conversationRepository,
                        MessageRepository messageRepository,
                        UserRepository userRepository,
-                       MarketplaceListingRepository listingRepository) {
+                       MarketplaceListingRepository listingRepository,
+                       MessageHelpfulVoteRepository messageHelpfulVoteRepository) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.listingRepository = listingRepository;
+        this.messageHelpfulVoteRepository = messageHelpfulVoteRepository;
     }
 
     @Transactional(readOnly = true)
@@ -157,6 +163,112 @@ public class ChatService {
         conversationRepository.save(conversation);
 
         return message;
+    }
+
+    /**
+     * Delete a conversation and all its messages.
+     * Only a participant may delete their conversation.
+     */
+    @Transactional
+    public void deleteConversation(Long userId, Long conversationId) {
+        Conversation conversation = getConversationEntity(conversationId);
+        checkParticipant(conversation, userId);
+        conversationRepository.delete(conversation);
+    }
+
+    /**
+     * Toggle a "helpful" vote on a message. Cannot vote on your own message.
+     * Returns { helpful: true/false, helpfulCount: N }.
+     */
+    @Transactional
+    public Map<String, Object> toggleMessageHelpful(Long voterId, Long messageId) {
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+
+        if (message.getSender().getId().equals(voterId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot vote on your own message");
+        }
+
+        boolean alreadyVoted = messageHelpfulVoteRepository.existsByMessageIdAndVoterId(messageId, voterId);
+        if (alreadyVoted) {
+            messageHelpfulVoteRepository.deleteByMessageIdAndVoterId(messageId, voterId);
+        } else {
+            User voter = getUser(voterId);
+            MessageHelpfulVote vote = MessageHelpfulVote.builder()
+                    .message(message)
+                    .voter(voter)
+                    .build();
+            messageHelpfulVoteRepository.save(vote);
+        }
+
+        long helpfulCount = messageHelpfulVoteRepository.countByMessageId(messageId);
+        return Map.of("helpful", !alreadyVoted, "helpfulCount", helpfulCount);
+    }
+
+    /**
+     * Toggle a "helpful" vote on a conversation (+10 Padosi Score to the other participant).
+     */
+    @Transactional
+    public Map<String, Object> toggleConversationHelpful(Long voterId, Long conversationId) {
+        Conversation conversation = getConversationEntity(conversationId);
+        checkParticipant(conversation, voterId);
+
+        Long otherUserId = conversation.getParticipant1().getId().equals(voterId)
+                ? conversation.getParticipant2().getId()
+                : conversation.getParticipant1().getId();
+
+        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+        for (Message m : messages) {
+            if (m.getSender().getId().equals(otherUserId) &&
+                    messageHelpfulVoteRepository.existsByMessageIdAndVoterId(m.getId(), voterId)) {
+                messageHelpfulVoteRepository.deleteByMessageIdAndVoterId(m.getId(), voterId);
+                return Map.of("helpful", false);
+            }
+        }
+
+        Message targetMessage = null;
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message m = messages.get(i);
+            if (m.getSender().getId().equals(otherUserId)) {
+                targetMessage = m;
+                break;
+            }
+        }
+
+        if (targetMessage == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "The other participant hasn't sent any messages yet to mark helpful.");
+        }
+
+        User voter = getUser(voterId);
+        MessageHelpfulVote vote = MessageHelpfulVote.builder()
+                .message(targetMessage)
+                .voter(voter)
+                .build();
+        messageHelpfulVoteRepository.save(vote);
+        return Map.of("helpful", true);
+    }
+
+    /**
+     * Check if the voter has marked this conversation/other participant as helpful.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getConversationHelpfulStatus(Long voterId, Long conversationId) {
+        Conversation conversation = getConversationEntity(conversationId);
+        checkParticipant(conversation, voterId);
+
+        Long otherUserId = conversation.getParticipant1().getId().equals(voterId)
+                ? conversation.getParticipant2().getId()
+                : conversation.getParticipant1().getId();
+
+        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+        for (Message m : messages) {
+            if (m.getSender().getId().equals(otherUserId) &&
+                    messageHelpfulVoteRepository.existsByMessageIdAndVoterId(m.getId(), voterId)) {
+                return Map.of("helpful", true);
+            }
+        }
+        return Map.of("helpful", false);
     }
 
     private Conversation getConversationEntity(Long conversationId) {

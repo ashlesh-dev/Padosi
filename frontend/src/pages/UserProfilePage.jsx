@@ -1,65 +1,155 @@
-import { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useContext, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axiosInstance';
+import { uploadAvatar } from '../api/supabaseClient';
+
+const SUPABASE_CONFIGURED = Boolean(
+  import.meta.env.VITE_SUPABASE_URL &&
+  import.meta.env.VITE_SUPABASE_ANON_KEY &&
+  import.meta.env.VITE_SUPABASE_ANON_KEY !== 'your_supabase_anon_key_here'
+);
 
 // ─── Score helpers ────────────────────────────────────────────────────────────
 
 /**
- * 4-band colour scale per the Padosi design spec:
- *   8.0–10.0  Green        Excellent
- *   6.5– 7.9  Light Green  Good
- *   4.0– 6.4  Orange       Needs Attention
- *   0.0– 3.9  Red          Poor
+ * Tiered color scale for unlimited Padosi Score (starting at 5, +5 per helpful vote):
+ *   100+  Amber/Orange  Community Champion
+ *   50+   Purple        Super Neighbor
+ *   25+   Blue          Active Contributor
+ *   10+   Green         Helpful Neighbor
+ *   5+    Teal          Good Neighbor (Starting Score)
  */
 function scoreColor(s) {
-  if (s >= 8.0) return '#16a34a'; // green
-  if (s >= 6.5) return '#65a30d'; // light green
-  if (s >= 4.0) return '#ea580c'; // orange
-  return '#dc2626';               // red
+  if (s >= 100) return '#ea580c'; // orange
+  if (s >= 50)  return '#7c3aed'; // purple
+  if (s >= 25)  return '#0284c7'; // blue
+  if (s >= 10)  return '#16a34a'; // green
+  if (s >= 5)   return '#0d9488'; // teal (starting base score)
+  return '#64748b';               // muted
 }
 
 function scoreBg(s) {
-  if (s >= 8.0) return '#dcfce7';
-  if (s >= 6.5) return '#ecfccb';
-  if (s >= 4.0) return '#ffedd5';
-  return '#fee2e2';
+  if (s >= 100) return '#ffedd5';
+  if (s >= 50)  return '#ede9fe';
+  if (s >= 25)  return '#e0f2fe';
+  if (s >= 10)  return '#dcfce7';
+  if (s >= 5)   return '#ccfbf1';
+  return '#f1f5f9';
 }
 
 function scoreLabel(s) {
-  if (s >= 8.0) return 'Excellent community member';
-  if (s >= 6.5) return 'Good community member';
-  if (s >= 4.0) return 'Needs attention';
-  return 'Poor standing';
+  if (s >= 100) return 'Community Champion';
+  if (s >= 50)  return 'Super Neighbor';
+  if (s >= 25)  return 'Active Contributor';
+  if (s >= 10)  return 'Helpful Neighbor';
+  if (s >= 5)   return 'Good Neighbor';
+  return 'Community Member';
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-const Avatar = ({ avatarUrl, fullName, size = 96 }) => {
+const Avatar = ({ avatarUrl, fullName, size = 96, isEditable = false, userId, onUploadComplete }) => {
+  const [hovered, setHovered] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const initial = fullName?.charAt(0)?.toUpperCase() || '?';
+
   const commonStyle = {
     width: size, height: size, borderRadius: '50%',
     border: '3px solid #fff',
     boxShadow: '0 0 0 2px var(--teal)',
     flexShrink: 0,
+    textDecoration: 'none',
   };
 
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl} alt={fullName}
-        style={{ ...commonStyle, objectFit: 'cover' }}
-      />
-    );
-  }
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Image must be under 3 MB.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const publicUrl = await uploadAvatar(file, userId);
+      await api.patch('/users/me/avatar', { avatarUrl: publicUrl });
+      if (onUploadComplete) onUploadComplete(publicUrl);
+    } catch (err) {
+      alert('Failed to upload profile picture: ' + err.message);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
-    <div style={{
-      ...commonStyle,
-      backgroundColor: 'var(--orange)', color: '#fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.38, fontWeight: '700',
-    }}>
-      {initial}
+    <div
+      style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {avatarUrl ? (
+        <img
+          src={avatarUrl} alt={fullName}
+          style={{ ...commonStyle, objectFit: 'cover' }}
+        />
+      ) : (
+        <div style={{
+          ...commonStyle,
+          backgroundColor: 'var(--orange)', color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: size * 0.38, fontWeight: '700',
+          textDecoration: 'none', userSelect: 'none',
+        }}>
+          {initial}
+        </div>
+      )}
+
+      {/* Editable camera overlay */}
+      {isEditable && SUPABASE_CONFIGURED && (
+        <div
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            backgroundColor: 'rgba(0,0,0,0.48)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            cursor: uploading ? 'wait' : 'pointer',
+            opacity: hovered || uploading ? 1 : 0,
+            transition: 'opacity 0.2s ease',
+            color: '#fff',
+            zIndex: 10,
+          }}
+          title="Change profile picture"
+        >
+          {uploading ? (
+            <span style={{ fontSize: '1.4rem' }}>⏳</span>
+          ) : (
+            <>
+              <span style={{ fontSize: '1.3rem' }}>📷</span>
+              <span style={{ fontSize: '0.62rem', fontWeight: '700', marginTop: '2px', textAlign: 'center', lineHeight: 1.1 }}>
+                Change<br />Photo
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {isEditable && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+      )}
     </div>
   );
 };
@@ -79,9 +169,11 @@ const Skel = ({ w = '100%', h = '14px', r = '6px', style = {} }) => (
 // ─── Score Badge ──────────────────────────────────────────────────────────────
 
 const ScoreBadge = ({ score }) => {
-  const color = scoreColor(score);
-  const bg    = scoreBg(score);
-  const label = scoreLabel(score);
+  // Score may be missing/null from older or partial API responses — never let that crash the page.
+  const value = Number.isFinite(Number(score)) ? Number(score) : null;
+  const color = value === null ? '#64748b' : scoreColor(value);
+  const bg    = value === null ? '#f1f5f9' : scoreBg(value);
+  const label = value === null ? 'No score yet' : scoreLabel(value);
 
   return (
     <div style={{
@@ -89,19 +181,22 @@ const ScoreBadge = ({ score }) => {
       alignItems: 'center', gap: '0.35rem',
       backgroundColor: bg,
       border: `1.5px solid ${color}33`,
-      borderRadius: '1rem', padding: '0.9rem 1.5rem',
+      borderRadius: '1rem', padding: '0.85rem 1.6rem',
+      minWidth: '140px',
     }}>
       {/* Score value */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
-        <span style={{ fontSize: '2rem', fontWeight: '800', color, lineHeight: 1 }}>
-          {score.toFixed(1)}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+        <span style={{ fontSize: '2.25rem', fontWeight: '800', color, lineHeight: 1 }}>
+          {value === null ? '—' : Math.round(value)}
         </span>
-        <span style={{ fontSize: '1rem', color, fontWeight: '600' }}>/10</span>
+        <span style={{ fontSize: '0.85rem', color, fontWeight: '700', letterSpacing: '0.04em' }}>
+          PTS
+        </span>
       </div>
 
       {/* Label */}
       <span style={{
-        fontSize: '0.75rem', fontWeight: '600', color,
+        fontSize: '0.72rem', fontWeight: '700', color,
         textTransform: 'uppercase', letterSpacing: '0.06em',
       }}>
         {label}
@@ -311,7 +406,7 @@ const ReportModal = ({ targetName, onClose }) => {
 
 const UserProfilePage = () => {
   const { userId } = useParams();
-  const { user: me } = useContext(AuthContext);
+  const { user: me, login } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [profile, setProfile]         = useState(null);
@@ -325,6 +420,12 @@ const UserProfilePage = () => {
 
   const PAGE_SIZE    = 10;
   const isOwnProfile = me && Number(userId) === Number(me.id);
+
+  const handleAvatarUpdate = (newAvatarUrl) => {
+    const token = localStorage.getItem('token');
+    if (login) login(token, { ...me, avatarUrl: newAvatarUrl });
+    setProfile(p => p ? { ...p, avatarUrl: newAvatarUrl } : p);
+  };
 
   // ── Fetch profile ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -452,7 +553,14 @@ const UserProfilePage = () => {
                 display: 'flex', justifyContent: 'space-between',
                 alignItems: 'flex-end', marginBottom: '1rem',
               }}>
-                <Avatar avatarUrl={profile.avatarUrl} fullName={profile.fullName} size={96} />
+                <Avatar
+                  avatarUrl={profile.avatarUrl}
+                  fullName={profile.fullName}
+                  size={96}
+                  isEditable={isOwnProfile}
+                  userId={me?.id}
+                  onUploadComplete={handleAvatarUpdate}
+                />
 
                 {/* Buttons */}
                 <div style={{ display: 'flex', gap: '0.5rem', paddingBottom: '0.25rem' }}>
@@ -522,16 +630,22 @@ const UserProfilePage = () => {
               {/* Divider */}
               <hr style={{ border: 'none', borderTop: '1px solid var(--line)', marginBottom: '1.5rem' }} />
 
-              {/* Behaviour Score */}
+              {/* Padosi Score */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.65rem' }}>
-                <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '700', color: 'var(--muted)',
-                  textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                  Padosi Behaviour Score
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <img
+                    src="/padosi-score-badge.jpg"
+                    alt="Padosi Score"
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'cover' }}
+                  />
+                  <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: '700', color: 'var(--muted)',
+                    textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                    Padosi Score
+                  </p>
+                </div>
                 <ScoreBadge score={profile.behaviourScore} />
                 <p style={{ margin: 0, fontSize: '0.77rem', color: 'var(--muted)', lineHeight: 1.55, maxWidth: '480px' }}>
-                  This score reflects {isOwnProfile ? 'your' : 'this member\'s'} overall behaviour and contribution to the Padosi community.
-                  It is calculated from community participation and platform activity — not popularity or followers.
+                  This score reflects {isOwnProfile ? 'your' : "this member's"} community reputation. Every member starts with a base score of <strong>5</strong>, and earns <strong>+5 points</strong> every time a neighbor marks their comments or chat messages helpful!
                 </p>
               </div>
             </div>

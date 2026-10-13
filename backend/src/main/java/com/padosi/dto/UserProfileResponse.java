@@ -22,7 +22,7 @@ public record UserProfileResponse(
         String city,           // e.g. "Mumbai"
         Instant memberSince,
         int postCount,         // how many posts this user has made
-        double behaviourScore  // 1.0–10.0, computed by UserService
+        double behaviourScore  // Starting at 5.0, +5 per helpful vote (internal limit 1000.0)
 ) {
     /** Factory — stats and score are pre-computed by UserService. */
     public static UserProfileResponse from(User u, int postCount, double behaviourScore) {
