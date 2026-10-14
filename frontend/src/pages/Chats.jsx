@@ -32,10 +32,61 @@ const Chats = () => {
   const [sending, setSending] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [error, setError] = useState('');
+  const [showChatMenu, setShowChatMenu] = useState(false);
+  const [isChatHelpful, setIsChatHelpful] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const chatMenuRef = useRef(null);
   const activeConversationRef = useRef(activeConversationId);
   activeConversationRef.current = activeConversationId;
+
+  // Close three dots menu on click outside
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (chatMenuRef.current && !chatMenuRef.current.contains(e.target)) {
+        setShowChatMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  // Fetch helpful status for active conversation
+  useEffect(() => {
+    setShowChatMenu(false);
+    if (activeConversationId) {
+      api.get(`/chat/conversations/${activeConversationId}/helpful`)
+        .then(res => setIsChatHelpful(Boolean(res.data.helpful)))
+        .catch(() => setIsChatHelpful(false));
+    }
+  }, [activeConversationId]);
+
+  const handleToggleChatHelpful = async () => {
+    if (!activeConversationId) return;
+    try {
+      const res = await api.post(`/chat/conversations/${activeConversationId}/helpful`);
+      setIsChatHelpful(Boolean(res.data.helpful));
+      setShowChatMenu(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not update helpful status.');
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!activeConversationId) return;
+    const confirmed = window.confirm('Are you sure you want to delete this chat? All messages will be permanently deleted.');
+    if (!confirmed) return;
+    try {
+      await api.delete(`/chat/conversations/${activeConversationId}`);
+      setShowChatMenu(false);
+      setConversations(prev => prev.filter(c => c.id !== activeConversationId));
+      setActiveConversationId(null);
+      setMessages([]);
+      setSearchParams({});
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not delete conversation.');
+    }
+  };
 
   // Auto-scroll messages to bottom
   const scrollToBottom = (smooth = true) => {
@@ -392,7 +443,9 @@ const Chats = () => {
                     fontWeight: '700',
                     fontSize: '1rem',
                     flexShrink: 0,
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    textDecoration: 'none',
+                    userSelect: 'none'
                   }}>
                     {other?.avatarUrl ? (
                       <img src={other.avatarUrl} alt={other.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -519,30 +572,37 @@ const Chats = () => {
                   }
                 `}</style>
 
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--orange)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: '700',
-                  fontSize: '1rem',
-                  overflow: 'hidden',
-                  flexShrink: 0
-                }}>
-                  {activeConversation.otherParticipant?.avatarUrl ? (
-                    <img
-                      src={activeConversation.otherParticipant.avatarUrl}
-                      alt={activeConversation.otherParticipant.fullName}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    activeConversation.otherParticipant?.fullName?.charAt(0).toUpperCase() || '?'
-                  )}
-                </div>
+                <Link
+                  to={`/app/users/${activeConversation.otherParticipant?.id}`}
+                  style={{ textDecoration: 'none', flexShrink: 0 }}
+                >
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--orange)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '700',
+                    fontSize: '1rem',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    textDecoration: 'none',
+                    userSelect: 'none'
+                  }}>
+                    {activeConversation.otherParticipant?.avatarUrl ? (
+                      <img
+                        src={activeConversation.otherParticipant.avatarUrl}
+                        alt={activeConversation.otherParticipant.fullName}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      activeConversation.otherParticipant?.fullName?.charAt(0).toUpperCase() || '?'
+                    )}
+                  </div>
+                </Link>
 
                 <div style={{ minWidth: 0 }}>
                   <Link
@@ -567,22 +627,187 @@ const Chats = () => {
                 </div>
               </div>
 
-              {/* View profile button */}
-              <Link
-                to={`/app/users/${activeConversation.otherParticipant?.id}`}
-                style={{
-                  padding: '0.4rem 0.75rem',
-                  borderRadius: '0.5rem',
-                  border: '1px solid var(--line)',
-                  backgroundColor: 'var(--cream)',
-                  color: 'var(--ink)',
-                  textDecoration: 'none',
-                  fontSize: '0.75rem',
-                  fontWeight: '600'
-                }}
-              >
-                View Profile
-              </Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {/* Direct Helpful toggle button */}
+                <button
+                  type="button"
+                  onClick={handleToggleChatHelpful}
+                  title={isChatHelpful ? 'Marked as helpful (+5 Padosi Score)' : 'Mark neighbor as helpful (+5 Padosi Score)'}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.42rem 0.85rem',
+                    borderRadius: '999px',
+                    border: isChatHelpful ? '1px solid #fecdd3' : '1px solid var(--line)',
+                    backgroundColor: isChatHelpful ? '#fee2e2' : '#fff',
+                    color: isChatHelpful ? '#e11d48' : 'var(--muted)',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: isChatHelpful ? '700' : '600',
+                    transition: 'all 0.18s cubic-bezier(.34,1.56,.64,1)',
+                    boxShadow: isChatHelpful ? '0 1px 3px rgba(225, 29, 72, 0.15)' : 'none'
+                  }}
+                  onMouseEnter={e => {
+                    if (!isChatHelpful) {
+                      e.currentTarget.style.backgroundColor = '#fff1f2';
+                      e.currentTarget.style.color = '#e11d48';
+                      e.currentTarget.style.borderColor = '#fecdd3';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isChatHelpful) {
+                      e.currentTarget.style.backgroundColor = '#fff';
+                      e.currentTarget.style.color = 'var(--muted)';
+                      e.currentTarget.style.borderColor = 'var(--line)';
+                    }
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill={isChatHelpful ? '#e11d48' : 'none'}
+                    stroke={isChatHelpful ? '#e11d48' : 'currentColor'}
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      transform: isChatHelpful ? 'scale(1.1)' : 'scale(1)',
+                      transition: 'transform 0.18s ease'
+                    }}
+                  >
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                  <span>{isChatHelpful ? 'Helpful (+5)' : 'Mark Helpful (+5)'}</span>
+                </button>
+
+                {/* Three dots options button */}
+                <div style={{ position: 'relative' }} ref={chatMenuRef}>
+                  <button
+                    type="button"
+                    id="chat-options-btn"
+                    onClick={() => setShowChatMenu(v => !v)}
+                    style={{
+                      padding: '0.4rem 0.65rem',
+                      borderRadius: '0.5rem',
+                      border: '1px solid var(--line)',
+                      backgroundColor: showChatMenu ? 'var(--mint)' : '#fff',
+                      color: 'var(--ink)',
+                      cursor: 'pointer',
+                      fontSize: '1.15rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      lineHeight: 1
+                    }}
+                    title="Chat options"
+                  >
+                    ⋮
+                  </button>
+
+                  {showChatMenu && (
+                    <div style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: 'calc(100% + 6px)',
+                      backgroundColor: '#fff',
+                      border: '1px solid var(--line)',
+                      borderRadius: '0.65rem',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                      minWidth: '200px',
+                      zIndex: 100,
+                      padding: '0.35rem 0',
+                      overflow: 'hidden'
+                    }}>
+                      {/* Helpful button in menu */}
+                      <button
+                        type="button"
+                        onClick={handleToggleChatHelpful}
+                        style={{
+                          width: '100%',
+                          padding: '0.6rem 0.95rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.55rem',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          fontSize: '0.82rem',
+                          fontWeight: '600',
+                          color: isChatHelpful ? '#e11d48' : 'var(--ink)',
+                          transition: 'background 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = isChatHelpful ? '#fee2e2' : 'var(--cream)'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill={isChatHelpful ? '#e11d48' : 'none'}
+                          stroke={isChatHelpful ? '#e11d48' : 'currentColor'}
+                          strokeWidth="2.2"
+                        >
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                        <span>{isChatHelpful ? 'Marked Helpful (+5)' : 'Mark as Helpful (+5)'}</span>
+                      </button>
+
+                    {/* View profile link */}
+                    <Link
+                      to={`/app/users/${activeConversation.otherParticipant?.id}`}
+                      onClick={() => setShowChatMenu(false)}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.95rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.55rem',
+                        textDecoration: 'none',
+                        fontSize: '0.82rem',
+                        color: 'var(--ink)',
+                        boxSizing: 'border-box'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--cream)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <span style={{ fontSize: '1rem' }}>👤</span>
+                      <span>View Profile</span>
+                    </Link>
+
+                    <div style={{ height: '1px', backgroundColor: 'var(--line)', margin: '0.25rem 0' }} />
+
+                    {/* Delete chat option */}
+                    <button
+                      type="button"
+                      onClick={handleDeleteConversation}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.95rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.55rem',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontSize: '0.82rem',
+                        fontWeight: '600',
+                        color: '#dc2626',
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <span style={{ fontSize: '1rem' }}>🗑️</span>
+                      <span>Delete Chat</span>
+                    </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Marketplace Listing Banner (if attached) */}
@@ -764,8 +989,38 @@ const Chats = () => {
                       <div style={{
                         display: 'flex',
                         justifyContent: isMine ? 'flex-end' : 'flex-start',
+                        alignItems: 'flex-end',
                         gap: '0.5rem'
                       }}>
+                        {!isMine && (
+                          <div style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--orange)',
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.75rem',
+                            fontWeight: '700',
+                            flexShrink: 0,
+                            overflow: 'hidden',
+                            textDecoration: 'none',
+                            userSelect: 'none',
+                            marginBottom: '2px'
+                          }}>
+                            {activeConversation.otherParticipant?.avatarUrl ? (
+                              <img
+                                src={activeConversation.otherParticipant.avatarUrl}
+                                alt={activeConversation.otherParticipant.fullName}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              activeConversation.otherParticipant?.fullName?.charAt(0).toUpperCase() || '?'
+                            )}
+                          </div>
+                        )}
                         <div style={{
                           maxWidth: '75%',
                           backgroundColor: isMine ? 'var(--teal)' : '#fff',

@@ -91,8 +91,10 @@ public class PostController {
 
     /** GET /api/posts/{id}/comments — list all comments, oldest first. */
     @GetMapping("/{id}/comments")
-    public List<CommentResponse> getComments(@PathVariable Long id) {
-        return postService.getComments(id);
+    public List<CommentResponse> getComments(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+        return postService.getComments(id, userId);
     }
 
     /** POST /api/posts/{id}/comments — add a comment. */
@@ -103,5 +105,18 @@ public class PostController {
             @PathVariable Long id,
             @Valid @RequestBody CreateCommentRequest request) {
         return postService.addComment(userId, id, request);
+    }
+
+    /**
+     * POST /api/posts/{postId}/comments/{commentId}/helpful
+     * Toggle a "helpful" vote on a comment. +5 Padosi Score to the comment author.
+     * Returns { helpful: true/false, helpfulCount: N }.
+     */
+    @PostMapping("/{postId}/comments/{commentId}/helpful")
+    public Map<String, Object> toggleCommentHelpful(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long postId,
+            @PathVariable Long commentId) {
+        return postService.toggleCommentHelpful(userId, commentId);
     }
 }

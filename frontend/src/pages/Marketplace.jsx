@@ -235,7 +235,7 @@ const ListingDetailModal = ({ listing, onClose, onReport }) => {
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: '1.5rem' }}>
               <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: 'var(--ink)' }}>Seller Information</h4>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                 <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.25rem', overflow: 'hidden' }}>
+                 <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '1.25rem', overflow: 'hidden', textDecoration: 'none', userSelect: 'none' }}>
                     {listing.sellerAvatarUrl ? <img src={listing.sellerAvatarUrl} alt={listing.sellerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : listing.sellerName.charAt(0).toUpperCase()}
                  </div>
                  <div>

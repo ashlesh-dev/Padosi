@@ -89,6 +89,7 @@ const Avatar = ({ name = '', avatarUrl, size = 40 }) => {
       backgroundColor: bg, color: '#fff', flexShrink: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontWeight: '700', fontSize: Math.round(size * 0.38),
+      textDecoration: 'none', userSelect: 'none',
     }}>
       {name.charAt(0).toUpperCase() || '?'}
     </div>
@@ -116,26 +117,101 @@ const PostSkeleton = () => (
   </div>
 );
 
-/** A single comment row (avatar + name + text + time). */
-const CommentRow = ({ comment }) => (
-  <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'flex-start', paddingBottom: '0.6rem' }}>
-    <Avatar name={comment.authorName} avatarUrl={comment.authorAvatarUrl} size={28} />
-    <div style={{ flex: 1 }}>
-      <div style={{
-        backgroundColor: 'var(--cream)', borderRadius: '0 0.85rem 0.85rem 0.85rem',
-        padding: '0.4rem 0.7rem', fontSize: '0.875rem', lineHeight: 1.5,
-      }}>
-        <strong style={{ fontSize: '0.8rem', color: 'var(--ink)', marginRight: '0.4rem' }}>
-          {comment.authorName}
-        </strong>
-        {comment.content}
+/** A single comment row (avatar + name + text + time + helpful button). */
+const CommentRow = ({ comment, postId, currentUserId, onToggleHelpful }) => {
+  const isMine = currentUserId && Number(comment.authorId) === Number(currentUserId);
+  const helpfulCount = comment.helpfulCount || 0;
+  const helpfulByMe = comment.helpfulByMe || false;
+
+  return (
+    <div style={{ display: 'flex', gap: '0.55rem', alignItems: 'flex-start', paddingBottom: '0.65rem' }}>
+      <Link to={`/app/users/${comment.authorId}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <Avatar name={comment.authorName} avatarUrl={comment.authorAvatarUrl} size={28} />
+      </Link>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          backgroundColor: 'var(--cream)', borderRadius: '0 0.85rem 0.85rem 0.85rem',
+          padding: '0.45rem 0.75rem', fontSize: '0.875rem', lineHeight: 1.45,
+        }}>
+          <Link
+            to={`/app/users/${comment.authorId}`}
+            style={{
+              fontSize: '0.8rem', fontWeight: '700', color: 'var(--ink)',
+              marginRight: '0.4rem', textDecoration: 'none', display: 'inline',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--teal)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--ink)'}
+          >
+            {comment.authorName}
+          </Link>
+          <span style={{ color: 'var(--ink)', wordBreak: 'break-word' }}>
+            {comment.content}
+          </span>
+        </div>
+
+        {/* Comment footer: timestamp + Helpful button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.2rem', marginLeft: '0.25rem' }}>
+          <span style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>
+            {timeAgo(comment.createdAt)}
+          </span>
+
+          {/* Helpful button */}
+          <button
+            type="button"
+            onClick={() => onToggleHelpful(comment.id)}
+            disabled={isMine}
+            title={isMine ? 'You cannot mark your own comment as helpful' : 'Mark as helpful (+5 Padosi Score)'}
+            style={{
+              border: helpfulByMe ? '1px solid #fecdd3' : '1px solid transparent',
+              padding: '0.15rem 0.5rem',
+              borderRadius: '999px',
+              fontSize: '0.72rem',
+              fontWeight: helpfulByMe ? '700' : '500',
+              color: helpfulByMe ? '#e11d48' : 'var(--muted)',
+              cursor: isMine ? 'default' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              backgroundColor: helpfulByMe ? '#fee2e2' : 'transparent',
+              transition: 'all 0.18s cubic-bezier(.34,1.56,.64,1)',
+              opacity: isMine ? 0.45 : 1,
+            }}
+            onMouseEnter={e => {
+              if (!isMine && !helpfulByMe) {
+                e.currentTarget.style.backgroundColor = '#fff1f2';
+                e.currentTarget.style.color = '#e11d48';
+              }
+            }}
+            onMouseLeave={e => {
+              if (!isMine && !helpfulByMe) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'var(--muted)';
+              }
+            }}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill={helpfulByMe ? '#e11d48' : 'none'}
+              stroke={helpfulByMe ? '#e11d48' : 'currentColor'}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                transform: helpfulByMe ? 'scale(1.1)' : 'scale(1)',
+                transition: 'transform 0.18s ease'
+              }}
+            >
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            <span>Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ''}</span>
+          </button>
+        </div>
       </div>
-      <span style={{ fontSize: '0.68rem', color: 'var(--muted)', marginLeft: '0.25rem' }}>
-        {timeAgo(comment.createdAt)}
-      </span>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * Expandable comments section — any authenticated user can view & post.
@@ -163,6 +239,25 @@ const CommentsSection = ({ postId, initialCommentCount, currentUser }) => {
       .catch(() => {})
       .finally(() => setLoadingComments(false));
   }, [open, postId]);
+
+  const handleToggleHelpful = async (commentId) => {
+    try {
+      const res = await api.post(`/posts/${postId}/comments/${commentId}/helpful`);
+      // res.data = { helpful: boolean, helpfulCount: number }
+      setComments(prev => prev.map(c => {
+        if (c.id === commentId) {
+          return {
+            ...c,
+            helpfulByMe: res.data.helpful,
+            helpfulCount: res.data.helpfulCount
+          };
+        }
+        return c;
+      }));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not update helpful vote.');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -204,7 +299,15 @@ const CommentsSection = ({ postId, initialCommentCount, currentUser }) => {
         <div style={{ marginBottom: '0.5rem' }}>
           {loadingComments
             ? <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: '0 0 0.5rem' }}>Loading…</p>
-            : comments.map(c => <CommentRow key={c.id} comment={c} />)
+            : comments.map(c => (
+                <CommentRow
+                  key={c.id}
+                  comment={c}
+                  postId={postId}
+                  currentUserId={currentUser?.id}
+                  onToggleHelpful={handleToggleHelpful}
+                />
+              ))
           }
         </div>
       )}
@@ -331,7 +434,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
       {/* ── HEADER ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem 1rem' }}>
         {/* Clickable avatar → author's profile */}
-        <Link to={`/app/users/${post.authorId}`} style={{ flexShrink: 0, display: 'block' }}>
+        <Link to={`/app/users/${post.authorId}`} style={{ flexShrink: 0, display: 'block', textDecoration: 'none' }}>
           <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size={42} />
         </Link>
         <div style={{ flex: 1, minWidth: 0 }}>

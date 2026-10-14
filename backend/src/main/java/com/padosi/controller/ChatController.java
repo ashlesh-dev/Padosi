@@ -64,4 +64,51 @@ public class ChatController {
         long count = chatService.getTotalUnreadCount(userId);
         return Map.of("unreadCount", count);
     }
+
+    /**
+     * DELETE /api/chat/conversations/{id}
+     * Deletes the conversation and all its messages. Only participants can do this.
+     */
+    @DeleteMapping("/conversations/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteConversation(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+        chatService.deleteConversation(userId, id);
+    }
+
+    /**
+     * POST /api/chat/conversations/{id}/messages/{messageId}/helpful
+     * Toggle a "helpful" vote on a message. +10 Padosi Score to the message sender.
+     * Returns { helpful: true/false, helpfulCount: N }.
+     */
+    @PostMapping("/conversations/{id}/messages/{messageId}/helpful")
+    public Map<String, Object> toggleMessageHelpful(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id,
+            @PathVariable Long messageId) {
+        return chatService.toggleMessageHelpful(userId, messageId);
+    }
+
+    /**
+     * POST /api/chat/conversations/{id}/helpful
+     * Toggle "helpful" vote on this chat (+10 Padosi Score to the other participant).
+     */
+    @PostMapping("/conversations/{id}/helpful")
+    public Map<String, Object> toggleConversationHelpful(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+        return chatService.toggleConversationHelpful(userId, id);
+    }
+
+    /**
+     * GET /api/chat/conversations/{id}/helpful
+     * Check if the current user marked this conversation as helpful.
+     */
+    @GetMapping("/conversations/{id}/helpful")
+    public Map<String, Object> getConversationHelpfulStatus(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+        return chatService.getConversationHelpfulStatus(userId, id);
+    }
 }

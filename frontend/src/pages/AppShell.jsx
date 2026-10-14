@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axiosInstance';
 
@@ -121,23 +121,46 @@ const AppShell = () => {
 
         {/* User profile footer */}
         <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{
-            width: '36px', height: '36px', borderRadius: '50%',
-            backgroundColor: 'var(--orange)', color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: '700', fontSize: '0.875rem', flexShrink: 0
-          }}>
-            {user?.fullName?.charAt(0).toUpperCase() || '?'}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontWeight: '600', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.fullName}</p>
-            <button
-              onClick={handleLogout}
-              style={{ border: 'none', background: 'none', padding: 0, color: 'var(--muted)', fontSize: '0.75rem', cursor: 'pointer' }}
-            >
-              Log out
-            </button>
-          </div>
+          <Link
+            to={`/app/users/${user?.id}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', flex: 1, minWidth: 0 }}
+          >
+            {/* Avatar: photo if available, else coloured initial */}
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.fullName}
+                style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  objectFit: 'cover', flexShrink: 0,
+                  border: '2px solid var(--teal)',
+                }}
+              />
+            ) : (
+              <div style={{
+                width: '36px', height: '36px', borderRadius: '50%',
+                backgroundColor: 'var(--orange)', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: '700', fontSize: '0.875rem', flexShrink: 0,
+                textDecoration: 'none', userSelect: 'none',
+              }}>
+                {user?.fullName?.charAt(0).toUpperCase() || '?'}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontWeight: '600', fontSize: '0.85rem', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user?.fullName}
+              </p>
+              <span style={{ color: 'var(--muted)', fontSize: '0.72rem' }}>View Profile</span>
+            </div>
+          </Link>
+          <button
+            onClick={handleLogout}
+            style={{ border: 'none', background: 'none', padding: '0.2rem', color: 'var(--muted)', fontSize: '0.75rem', cursor: 'pointer', flexShrink: 0 }}
+            title="Log out"
+          >
+            Log out
+          </button>
         </div>
       </aside>
 

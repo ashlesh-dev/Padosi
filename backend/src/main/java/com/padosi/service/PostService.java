@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 /** Business logic for community feed posts, likes, and comments. */
 @Service
@@ -26,17 +27,20 @@ public class PostService {
     private final CommentRepository commentRepository;
     private final PostImageRepository postImageRepository;
     private final UserRepository userRepository;
+    private final CommentHelpfulVoteRepository commentHelpfulVoteRepository;
 
     public PostService(PostRepository postRepository,
                        PostLikeRepository postLikeRepository,
                        CommentRepository commentRepository,
                        PostImageRepository postImageRepository,
-                       UserRepository userRepository) {
+                       UserRepository userRepository,
+                       CommentHelpfulVoteRepository commentHelpfulVoteRepository) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository = commentRepository;
         this.postImageRepository = postImageRepository;
         this.userRepository = userRepository;
+        this.commentHelpfulVoteRepository = commentHelpfulVoteRepository;
     }
 
     // ─── Feed ─────────────────────────────────────────────────────────────────
@@ -157,14 +161,19 @@ public class PostService {
 
     // ─── Comments ─────────────────────────────────────────────────────────────
 
-    /** Get all comments on a post, oldest first. */
+    /** Get all comments on a post, oldest first. Includes helpful vote info for the requesting user. */
     @Transactional(readOnly = true)
-    public List<CommentResponse> getComments(Long postId) {
+    public List<CommentResponse> getComments(Long postId, Long requestingUserId) {
         // Verify the post exists (throws 404 if not)
         getPost(postId);
         return commentRepository.findByPostIdOrderByCreatedAtAsc(postId)
                 .stream()
-                .map(CommentResponse::from)
+                .map(c -> {
+                    long helpfulCount = commentHelpfulVoteRepository.countByCommentId(c.getId());
+                    boolean helpfulByMe = requestingUserId != null &&
+                            commentHelpfulVoteRepository.existsByCommentIdAndVoterId(c.getId(), requestingUserId);
+                    return CommentResponse.from(c, helpfulCount, helpfulByMe);
+                })
                 .toList();
     }
 
@@ -181,6 +190,35 @@ public class PostService {
                 .build();
 
         return CommentResponse.from(commentRepository.save(comment));
+    }
+
+    /**
+     * Toggle "helpful" on a comment. Cannot vote on your own comment.
+     * Returns { helpful: true/false, helpfulCount: N }.
+     */
+    @Transactional
+    public Map<String, Object> toggleCommentHelpful(Long voterId, Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
+
+        if (comment.getAuthor().getId().equals(voterId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot vote on your own comment");
+        }
+
+        boolean alreadyVoted = commentHelpfulVoteRepository.existsByCommentIdAndVoterId(commentId, voterId);
+        if (alreadyVoted) {
+            commentHelpfulVoteRepository.deleteByCommentIdAndVoterId(commentId, voterId);
+        } else {
+            User voter = getUser(voterId);
+            CommentHelpfulVote vote = CommentHelpfulVote.builder()
+                    .comment(comment)
+                    .voter(voter)
+                    .build();
+            commentHelpfulVoteRepository.save(vote);
+        }
+
+        long helpfulCount = commentHelpfulVoteRepository.countByCommentId(commentId);
+        return Map.of("helpful", !alreadyVoted, "helpfulCount", helpfulCount);
     }
 
     /** Return the current like count for a post (used by the toggle-like endpoint). */

@@ -1,0 +1,10 @@
+{
+  "name": "padosi",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "backend": "cd backend && .\\mvnw.cmd spring-boot:run",
+    "frontend": "cd frontend && npm run dev",
+    "dev": "npm run frontend"
+  }
+}
