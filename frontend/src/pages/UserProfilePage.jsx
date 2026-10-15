@@ -2,7 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axiosInstance';
-import { uploadAvatar } from '../api/supabaseClient';
+import { deletePostImage, uploadAvatar } from '../api/supabaseClient';
 
 const SUPABASE_CONFIGURED = Boolean(
   import.meta.env.VITE_SUPABASE_URL &&
@@ -224,10 +224,82 @@ const timeAgo = (iso) => {
   return `${Math.floor(diff / 86400)}d ago`;
 };
 
-const PostCard = ({ post }) => {
+const PostCard = ({ post, currentUser, onDelete }) => {
   const [hovered, setHovered] = useState(false);
   const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [liked, setLiked] = useState(Boolean(post.likedByMe));
+  const [likeCount, setLikeCount] = useState(Number(post.likeCount) || 0);
+  const [commentCount, setCommentCount] = useState(Number(post.commentCount) || 0);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentPosting, setCommentPosting] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const tc = typeColors[post.postType] || typeColors.GENERAL;
+  const isOwnPost = Number(currentUser?.id) === Number(post.authorId);
+
+  useEffect(() => {
+    if (!commentsOpen) return;
+    setCommentsLoading(true);
+    api.get(`/posts/${post.id}/comments`)
+      .then(response => {
+        setComments(response.data);
+        setCommentCount(response.data.length);
+      })
+      .catch(requestError => setActionError(requestError.response?.data?.message || 'Could not load comments.'))
+      .finally(() => setCommentsLoading(false));
+  }, [commentsOpen, post.id]);
+
+  const handleLike = async () => {
+    const previousLiked = liked;
+    const previousCount = likeCount;
+    setLiked(!previousLiked);
+    setLikeCount(Math.max(0, previousCount + (previousLiked ? -1 : 1)));
+    setActionError('');
+    try {
+      const response = await api.post(`/posts/${post.id}/like`);
+      setLiked(Boolean(response.data.liked));
+      setLikeCount(Number(response.data.likeCount) || 0);
+    } catch (requestError) {
+      setLiked(previousLiked);
+      setLikeCount(previousCount);
+      setActionError(requestError.response?.data?.message || 'Could not update like. Please try again.');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+    setMenuOpen(false);
+    setActionError('');
+    try {
+      if (post.imageUrl) await deletePostImage(post.imageUrl);
+      await api.delete(`/posts/${post.id}`);
+      onDelete(post.id);
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.message || 'Could not delete post. Please try again.');
+    }
+  };
+
+  const handleComment = async (event) => {
+    event.preventDefault();
+    const content = commentText.trim();
+    if (!content) return;
+    setCommentPosting(true);
+    setActionError('');
+    try {
+      const response = await api.post(`/posts/${post.id}/comments`, { content });
+      setComments(previous => [...previous, response.data]);
+      setCommentCount(count => count + 1);
+      setCommentText('');
+      setCommentsOpen(true);
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.message || 'Could not post comment. Please try again.');
+    } finally {
+      setCommentPosting(false);
+    }
+  };
 
   return (
     <article
@@ -253,9 +325,15 @@ const PostCard = ({ post }) => {
         }}>
           {post.postType}
         </span>
-        <small style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>
-          {timeAgo(post.createdAt)}
-        </small>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <small style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>{timeAgo(post.createdAt)}</small>
+          {isOwnPost && (
+            <div style={{ position: 'relative' }}>
+              <button type="button" aria-label="Post options" onClick={() => setMenuOpen(open => !open)} style={{ border: 0, background: 'none', color: 'var(--muted)', fontSize: '1.25rem', cursor: 'pointer' }}>···</button>
+              {menuOpen && <button type="button" onClick={handleDelete} style={{ position: 'absolute', right: 0, top: '100%', zIndex: 5, whiteSpace: 'nowrap', border: '1px solid var(--line)', borderRadius: '0.5rem', background: '#fff', color: '#be123c', padding: '0.55rem 0.75rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,.12)' }}>🗑️ Delete post</button>}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -325,15 +403,26 @@ const PostCard = ({ post }) => {
         </div>
       )}
 
-      {/* Footer: likes + comments + locality */}
-      <div style={{
-        display: 'flex', gap: '1.1rem', marginTop: '0.75rem',
-        fontSize: '0.8rem', color: 'var(--muted)',
-      }}>
-        <span>❤️ {post.likeCount}</span>
-        <span>💬 {post.commentCount}</span>
-        <span style={{ marginLeft: 'auto' }}>📍 {post.localityName}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+        <button type="button" onClick={handleLike} aria-pressed={liked} aria-label={liked ? 'Unlike' : 'Like'} style={{ border: 0, borderRadius: '0.5rem', padding: '0.4rem 0.6rem', background: liked ? '#fff1f2' : 'transparent', color: liked ? '#e11d48' : 'var(--muted)', cursor: 'pointer', fontWeight: 700 }}>❤️ {likeCount} {likeCount === 1 ? 'like' : 'likes'}</button>
+        <button type="button" onClick={() => setCommentsOpen(open => !open)} aria-expanded={commentsOpen} style={{ border: 0, borderRadius: '0.5rem', padding: '0.4rem 0.6rem', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontWeight: 600 }}>💬 {commentsOpen ? 'Hide comments' : `${commentCount} ${commentCount === 1 ? 'comment' : 'comments'}`}</button>
+        <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: 'var(--muted)' }}>📍 {post.localityName}</span>
       </div>
+      {actionError && <p role="alert" style={{ color: '#be123c', fontSize: '0.78rem', margin: '0.5rem 0 0' }}>{actionError}</p>}
+      {commentsOpen && (
+        <div style={{ borderTop: '1px solid var(--line)', marginTop: '0.65rem', paddingTop: '0.65rem' }}>
+          {commentsLoading ? <p style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>Loading comments…</p> : comments.map(comment => (
+            <div key={comment.id} style={{ display: 'flex', gap: '0.5rem', padding: '0.35rem 0', fontSize: '0.84rem' }}>
+              <strong>{comment.authorName}</strong><span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{comment.content}</span>
+            </div>
+          ))}
+          {!commentsLoading && comments.length === 0 && <p style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>No comments yet. Start the conversation.</p>}
+          <form onSubmit={handleComment} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <input value={commentText} onChange={event => setCommentText(event.target.value)} maxLength={1000} placeholder="Add a comment…" aria-label="Add a comment" style={{ flex: 1, minWidth: 0, border: '1px solid var(--line)', borderRadius: '0.5rem', padding: '0.55rem 0.7rem', color: 'var(--ink)', background: '#fff' }} />
+            <button type="submit" disabled={commentPosting || !commentText.trim()} style={{ border: 0, borderRadius: '0.5rem', padding: '0 0.8rem', background: 'var(--teal)', color: '#fff', cursor: commentPosting ? 'wait' : 'pointer', fontWeight: 700 }}>{commentPosting ? '…' : 'Post'}</button>
+          </form>
+        </div>
+      )}
     </article>
   );
 };
@@ -799,7 +888,17 @@ const UserProfilePage = () => {
           </div>
         ) : (
           <>
-            {posts.map(post => <PostCard key={post.id} post={post} />)}
+            {posts.map(post => (
+              <PostCard
+                key={post.id}
+                post={post}
+                currentUser={me}
+                onDelete={deletedId => {
+                  setPosts(previous => previous.filter(item => item.id !== deletedId));
+                  setProfile(previous => previous ? { ...previous, postCount: Math.max(0, previous.postCount - 1) } : previous);
+                }}
+              />
+            ))}
 
             {hasMore && (
               <div style={{ textAlign: 'center', marginTop: '0.75rem', paddingBottom: '1rem' }}>

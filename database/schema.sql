@@ -57,6 +57,7 @@ create table users (
   locality_id      bigint not null references localities(id),
   location         geography(Point, 4326) not null,      -- NEVER returned to other users
   search_radius_km smallint not null default 5,          -- user's chosen radius
+  padosi_coins     bigint not null default 0,
   is_active        boolean not null default true,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now(),
@@ -70,6 +71,18 @@ create index idx_users_locality on users (locality_id);
 create index idx_users_location on users using gist (location);
 create trigger trg_users_updated before update on users
   for each row execute function set_updated_at();
+
+create table padosi_coin_transactions (
+  id            bigint generated always as identity primary key,
+  user_id       bigint not null references users(id) on delete cascade,
+  entry_type    varchar(10) not null check (entry_type in ('CREDIT', 'DEBIT')),
+  amount        bigint not null check (amount > 0),
+  balance_after bigint not null check (balance_after >= 0),
+  description   varchar(300) not null,
+  created_at    timestamptz not null default now()
+);
+create index idx_coin_transactions_user_created
+  on padosi_coin_transactions (user_id, created_at desc);
 
 -- =====================================================================
 -- POSTS (community feed + announcements) - Lost & Found and Alerts are separate
@@ -174,7 +187,7 @@ create index idx_alerts_expiry on alerts (is_active, expires_at);
 
 -- =====================================================================
 -- SERVICE PROVIDERS
--- Any user can optionally add ONE provider profile (1:1 with users).
+-- A Professional account can keep ONE provider listing (1:1 with users).
 -- Provider distance filtering uses the owner's users.location.
 -- =====================================================================
 create table service_categories (
@@ -193,6 +206,8 @@ create table service_providers (
   contact_phone    varchar(15),
   experience_years smallint,
   is_available     boolean not null default true,
+  duration_days    smallint,
+  expires_at       timestamptz,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now(),
   constraint chk_sp_experience check (experience_years is null or experience_years between 0 and 60)
@@ -232,6 +247,8 @@ create table marketplace_listings (
   category    varchar(20) not null default 'OTHER',
   item_condition varchar(10) not null default 'GOOD',
   status      varchar(10) not null default 'AVAILABLE',   -- AVAILABLE | SOLD
+  duration_days smallint not null default 30,
+  expires_at  timestamptz,
   location    geography(Point, 4326) not null,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),

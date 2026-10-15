@@ -30,19 +30,22 @@ public class PostService {
     private final PostImageRepository postImageRepository;
     private final UserRepository userRepository;
     private final CommentHelpfulVoteRepository commentHelpfulVoteRepository;
+    private final WalletService walletService;
 
     public PostService(PostRepository postRepository,
                        PostLikeRepository postLikeRepository,
                        CommentRepository commentRepository,
                        PostImageRepository postImageRepository,
                        UserRepository userRepository,
-                       CommentHelpfulVoteRepository commentHelpfulVoteRepository) {
+                       CommentHelpfulVoteRepository commentHelpfulVoteRepository,
+                       WalletService walletService) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository = commentRepository;
         this.postImageRepository = postImageRepository;
         this.userRepository = userRepository;
         this.commentHelpfulVoteRepository = commentHelpfulVoteRepository;
+        this.walletService = walletService;
     }
 
     // ─── Feed ─────────────────────────────────────────────────────────────────
@@ -132,6 +135,8 @@ public class PostService {
                         "Ad duration must be 7, 14, or 30 days.");
             }
             adExpiresAt = Instant.now().plus(adDurationDays, ChronoUnit.DAYS);
+            int months = (adDurationDays + 29) / 30;
+            walletService.chargeListing(userId, months, "Feed advertisement (" + adDurationDays + " days)");
         }
 
         Post post = Post.builder()

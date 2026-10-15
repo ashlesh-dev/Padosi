@@ -59,6 +59,13 @@ public class MarketplaceListing {
     @Builder.Default
     private ListingStatus status = ListingStatus.AVAILABLE;
 
+    @Column(name = "duration_days", nullable = false)
+    @Builder.Default
+    private Short durationDays = 30;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
     @JdbcTypeCode(SqlTypes.GEOGRAPHY)
     @Column(nullable = false, columnDefinition = "geography(Point,4326)")
     private Point location;

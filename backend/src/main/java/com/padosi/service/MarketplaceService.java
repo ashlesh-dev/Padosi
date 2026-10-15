@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /** Business logic for the second-hand marketplace. */
@@ -29,15 +31,18 @@ public class MarketplaceService {
     private final UserRepository userRepository;
     private final SavedListingRepository savedListingRepository;
     private final ListingReportRepository listingReportRepository;
+    private final WalletService walletService;
 
     public MarketplaceService(MarketplaceListingRepository listingRepository,
                               UserRepository userRepository,
                               SavedListingRepository savedListingRepository,
-                              ListingReportRepository listingReportRepository) {
+                              ListingReportRepository listingReportRepository,
+                              WalletService walletService) {
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
         this.savedListingRepository = savedListingRepository;
         this.listingReportRepository = listingReportRepository;
+        this.walletService = walletService;
     }
 
     /** Fetch available listings near the logged-in user, with optional custom radius override. */
@@ -61,6 +66,17 @@ public class MarketplaceService {
     @Transactional
     public MarketplaceResponse createListing(Long userId, CreateMarketplaceRequest req) {
         User user = getUser(userId);
+        if (!"BUSINESS".equals(user.getAccountType())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only Professional accounts can create paid Marketplace listings.");
+        }
+        short days = req.durationDays();
+        if (days != 30 && days != 60 && days != 90) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a listing duration of 30, 60, or 90 days.");
+        }
+        int months = days / 30;
+        walletService.chargeListing(userId, months, "Marketplace listing (" + days + " days)");
+
         MarketplaceListing listing = MarketplaceListing.builder()
                 .seller(user)
                 .locality(user.getLocality())
@@ -71,6 +87,8 @@ public class MarketplaceService {
                 .description(req.description())
                 .status(ListingStatus.AVAILABLE)
                 .location(user.getLocation())
+                .durationDays(days)
+                .expiresAt(Instant.now().plus(days, ChronoUnit.DAYS))
                 .build();
         
         if (req.imageUrl() != null && !req.imageUrl().isBlank()) {
@@ -125,9 +143,12 @@ public class MarketplaceService {
     
     @Transactional(readOnly = true)
     public List<MarketplaceResponse> getSavedListings(Long userId) {
+        Instant now = Instant.now();
         return savedListingRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
-                .map(saved -> MarketplaceResponse.from(saved.getListing(), true))
+                .map(saved -> saved.getListing())
+                .filter(listing -> listing.getExpiresAt() == null || listing.getExpiresAt().isAfter(now))
+                .map(listing -> MarketplaceResponse.from(listing, true))
                 .toList();
     }
 

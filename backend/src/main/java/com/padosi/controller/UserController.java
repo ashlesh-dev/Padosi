@@ -57,10 +57,11 @@ public class UserController {
      */
     @GetMapping("/{id}/posts")
     public List<PostResponse> getUserPosts(
+            @AuthenticationPrincipal Long viewerUserId,
             @PathVariable Long id,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "12") int size) {
-        return userService.getUserPosts(id, page, size);
+        return userService.getUserPosts(id, viewerUserId, page, size);
     }
 
     /**

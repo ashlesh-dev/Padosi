@@ -82,10 +82,15 @@ const ListingCard = ({ listing, onClick, onToggleSave }) => {
 };
 
 const CreateListingModal = ({ onClose, onListingCreated, user }) => {
-  const [formData, setFormData] = useState({ title: '', price: '', category: 'OTHER', itemCondition: 'GOOD', description: '' });
+  const [formData, setFormData] = useState({ title: '', price: '', category: 'OTHER', itemCondition: 'GOOD', description: '', durationDays: 30 });
+  const [walletBalance, setWalletBalance] = useState(user?.padosiCoins || 0);
   const [imageFile, setImageFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    api.get('/wallet').then(response => setWalletBalance(response.data.balance)).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -101,7 +106,7 @@ const CreateListingModal = ({ onClose, onListingCreated, user }) => {
       onClose();
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'An error occurred while creating the listing.');
+      setErrorMsg(err.response?.data?.message || 'An error occurred while creating the listing.');
     } finally {
       setIsSubmitting(false);
     }
@@ -152,8 +157,19 @@ const CreateListingModal = ({ onClose, onListingCreated, user }) => {
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem' }}>Description</label>
             <textarea rows="4" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--line)', resize: 'vertical' }} placeholder="Item details, flaws, pick-up preferences..." />
           </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem' }}>Listing duration</label>
+            <select value={formData.durationDays} onChange={e => setFormData({ ...formData, durationDays: Number(e.target.value) })} style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--line)', background: '#fff' }}>
+              <option value={30}>30 days · 199 coins</option>
+              <option value={60}>60 days · 398 coins</option>
+              <option value={90}>90 days · 597 coins</option>
+            </select>
+            <p style={{ margin: '0.4rem 0 0', color: 'var(--muted)', fontSize: '0.8rem' }}>
+              {Math.ceil(Number(formData.durationDays) / 30) * 199} coins will be deducted from your Professional wallet. Balance: {Number(walletBalance || 0).toLocaleString('en-IN')} coins.
+            </p>
+          </div>
           <button type="submit" disabled={isSubmitting} style={{ backgroundColor: 'var(--teal)', color: 'white', padding: '0.85rem', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', fontSize: '1rem', cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1 }}>
-            {isSubmitting ? 'Publishing...' : 'Publish Listing'}
+            {isSubmitting ? 'Publishing...' : `Publish Listing · ${Math.ceil(Number(formData.durationDays) / 30) * 199} coins`}
           </button>
         </form>
       </div>
@@ -405,12 +421,12 @@ const Marketplace = () => {
           </div>
         </div>
 
-        <button 
+        {user?.accountType === 'BUSINESS' ? <button
           onClick={() => setIsCreateOpen(true)}
           className="marketplace-create-listing"
           style={{ width: '100%', padding: '0.75rem', backgroundColor: '#e2edf6', color: 'var(--ink)', borderRadius: '0.5rem', fontWeight: 'bold', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '1.25rem', color: 'var(--teal)' }}>+</span> Create New Listing
-        </button>
+        </button> : <button onClick={() => navigate('/app/account')} className="marketplace-create-listing" style={{ width: '100%', padding: '0.75rem', backgroundColor: '#ccfbf1', color: 'var(--teal)', borderRadius: '0.5rem', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>Upgrade to Professional to list</button>}
         
         <button 
           onClick={() => setViewingSaved(!viewingSaved)}

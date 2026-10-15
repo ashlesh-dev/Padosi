@@ -18,6 +18,8 @@ public record MarketplaceResponse(
         String itemCondition,
         String status,
         Instant createdAt,
+        Short durationDays,
+        Instant expiresAt,
         String imageUrl,
         boolean isSaved,
         Long sellerId
@@ -39,6 +41,8 @@ public record MarketplaceResponse(
                 m.getItemCondition().name(),
                 m.getStatus().name(),
                 m.getCreatedAt(),
+                m.getDurationDays(),
+                m.getExpiresAt(),
                 primaryImage,
                 isSaved,
                 m.getSeller().getId()

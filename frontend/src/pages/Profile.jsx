@@ -1,4 +1,5 @@
 import React, { useContext, useRef, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axiosInstance';
 import { uploadAvatar } from '../api/supabaseClient';
@@ -172,7 +173,7 @@ const BusinessProfileSection = ({ user, onUpdate }) => {
   };
 
   return (
-    <div style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
+    <div id="professional-account" style={{ borderTop: '1px solid #eee', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -379,7 +380,7 @@ const BusinessProfileSection = ({ user, onUpdate }) => {
 // ─── Main Profile Page ─────────────────────────────────────────────────────────
 
 const Profile = () => {
-  const { user, login } = useContext(AuthContext);
+  const { user, login, loading } = useContext(AuthContext);
 
   // Called after a successful avatar upload to refresh the user in context
   const handleAvatarUpdate = (newAvatarUrl) => {
@@ -393,7 +394,8 @@ const Profile = () => {
     login(token, { ...user, ...updatedUser });
   };
 
-  if (!user) return null;
+  if (loading) return <p role="status" style={{ padding: '2rem', color: 'var(--muted)', textAlign: 'center' }}>Loading account settings…</p>;
+  if (!user) return <Navigate to="/login" replace />;
 
   return (
     <section className="container" style={{ paddingTop: '0.5rem', paddingBottom: '2rem' }}>

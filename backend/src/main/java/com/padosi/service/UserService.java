@@ -106,7 +106,7 @@ public class UserService {
      * @param page 0-based page index
      */
     @Transactional(readOnly = true)
-    public List<PostResponse> getUserPosts(Long targetUserId, int page, int size) {
+    public List<PostResponse> getUserPosts(Long targetUserId, Long viewerUserId, int page, int size) {
         // Verify the user exists first (throws 404 if not)
         findUser(targetUserId);
 
@@ -118,7 +118,13 @@ public class UserService {
         return all.stream()
                 .skip(offset)
                 .limit(effectiveSize)
-                .map(PostResponse::from)
+                .map(post -> PostResponse.from(
+                        post,
+                        postLikeRepository.countByIdPostId(post.getId()),
+                        commentRepository.countByPostId(post.getId()),
+                        postLikeRepository.existsByIdPostIdAndIdUserId(post.getId(), viewerUserId),
+                        0.0
+                ))
                 .toList();
     }
 

@@ -45,6 +45,12 @@ public class ServiceProvider {
     @Builder.Default
     private Boolean available = true;
 
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
+    @Column(name = "duration_days")
+    private Short durationDays;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

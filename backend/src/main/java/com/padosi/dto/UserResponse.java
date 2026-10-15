@@ -27,6 +27,7 @@ public record UserResponse(
         String businessBio,
         String businessContact,
         String businessWebsite,
+        Long padosiCoins,
         Instant createdAt
 ) {
     /** Call inside a transaction (it reads the lazy locality). */
@@ -49,6 +50,7 @@ public record UserResponse(
                 u.getBusinessBio(),
                 u.getBusinessContact(),
                 u.getBusinessWebsite(),
+                u.getPadosiCoins() != null ? u.getPadosiCoins() : 0L,
                 u.getCreatedAt()
         );
     }

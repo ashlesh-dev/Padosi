@@ -79,6 +79,11 @@ public class User {
     @Column(name = "business_website", length = 255)
     private String businessWebsite;
 
+    /** Promotional wallet balance. One Padosi Coin represents ₹1 in demo mode. */
+    @Column(name = "padosi_coins", nullable = false)
+    @Builder.Default
+    private Long padosiCoins = 0L;
+
     // ── Location & radius ─────────────────────────────────────────────────────
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -736,6 +736,13 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
   const [isAd, setIsAd] = useState(false);
   const [adRadiusKm, setAdRadiusKm] = useState(5);
   const [adDurationDays, setAdDurationDays] = useState(7);
+  const [walletBalance, setWalletBalance] = useState(currentUser?.padosiCoins || 0);
+
+  useEffect(() => {
+    if (isBusiness) {
+      api.get('/wallet').then(response => setWalletBalance(response.data.balance)).catch(() => {});
+    }
+  }, [isBusiness]);
 
   const SUPABASE_CONFIGURED = Boolean(
     import.meta.env.VITE_SUPABASE_URL &&
@@ -802,6 +809,9 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
         } : { isAd: false }),
       });
       onCreated(res.data);
+      if (isBusiness && isAd) {
+        api.get('/wallet').then(response => setWalletBalance(response.data.balance)).catch(() => {});
+      }
       // Reset form
       setContent('');
       setPostType('GENERAL');
@@ -1052,6 +1062,9 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
 
                   <p style={{ fontSize: '0.72rem', color: '#92400e', margin: 'auto 0 0', fontStyle: 'italic' }}>
                     Ad will be visible within {adRadiusKm} km for {adDurationDays} days
+                  </p>
+                  <p style={{ flexBasis: '100%', fontSize: '0.75rem', color: '#78350f', margin: '0.15rem 0 0' }}>
+                    Listing fee: <strong>199 Padosi Coins</strong> for this period (deducted when published). Wallet balance: {Number(walletBalance || 0).toLocaleString('en-IN')} coins.
                   </p>
                 </div>
               )}
