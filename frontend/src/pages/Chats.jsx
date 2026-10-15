@@ -247,7 +247,7 @@ const Chats = () => {
     <div style={{
       display: 'flex',
       height: 'calc(100vh - 4.5rem)',
-      backgroundColor: '#fff',
+      backgroundColor: 'var(--surface)',
       borderRadius: '1rem',
       border: '1px solid var(--line)',
       overflow: 'hidden',
@@ -260,14 +260,14 @@ const Chats = () => {
           display: flex;
           flex-direction: column;
           border-right: 1px solid var(--line);
-          background-color: #fff;
+          background-color: var(--surface);
         }
         .chats-main {
           flex: 1;
           display: flex;
           flex-direction: column;
           min-width: 0;
-          background-color: #fff;
+          background-color: var(--surface);
         }
         .chat-list-item:hover {
           background-color: var(--cream);
@@ -424,7 +424,7 @@ const Chats = () => {
                     gap: '0.75rem',
                     padding: '0.85rem 1.25rem',
                     cursor: 'pointer',
-                    borderBottom: '1px solid #f5f3ed',
+                    borderBottom: '1px solid var(--line)',
                     backgroundColor: isActive ? 'var(--mint)' : 'transparent',
                     borderLeft: isActive ? '4px solid var(--teal)' : '4px solid transparent',
                     transition: 'background-color 0.15s, border-left 0.15s'
@@ -478,7 +478,7 @@ const Chats = () => {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.3rem',
-                        backgroundColor: isActive ? '#fff' : 'var(--cream)',
+                        backgroundColor: isActive ? 'var(--surface-raised)' : 'var(--cream)',
                         border: '1px solid var(--line)',
                         borderRadius: '4px',
                         padding: '0.1rem 0.4rem',
@@ -543,7 +543,7 @@ const Chats = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              backgroundColor: '#fff',
+              backgroundColor: 'var(--surface)',
               zIndex: 10
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
@@ -640,7 +640,7 @@ const Chats = () => {
                     padding: '0.42rem 0.85rem',
                     borderRadius: '999px',
                     border: isChatHelpful ? '1px solid #fecdd3' : '1px solid var(--line)',
-                    backgroundColor: isChatHelpful ? '#fee2e2' : '#fff',
+                    backgroundColor: isChatHelpful ? '#fee2e2' : 'var(--surface-raised)',
                     color: isChatHelpful ? '#e11d48' : 'var(--muted)',
                     cursor: 'pointer',
                     fontSize: '0.8rem',
@@ -657,7 +657,7 @@ const Chats = () => {
                   }}
                   onMouseLeave={e => {
                     if (!isChatHelpful) {
-                      e.currentTarget.style.backgroundColor = '#fff';
+                      e.currentTarget.style.backgroundColor = 'var(--surface-raised)';
                       e.currentTarget.style.color = 'var(--muted)';
                       e.currentTarget.style.borderColor = 'var(--line)';
                     }
@@ -692,7 +692,7 @@ const Chats = () => {
                       padding: '0.4rem 0.65rem',
                       borderRadius: '0.5rem',
                       border: '1px solid var(--line)',
-                      backgroundColor: showChatMenu ? 'var(--mint)' : '#fff',
+                      backgroundColor: showChatMenu ? 'var(--mint)' : 'var(--surface-raised)',
                       color: 'var(--ink)',
                       cursor: 'pointer',
                       fontSize: '1.15rem',
@@ -711,7 +711,7 @@ const Chats = () => {
                       position: 'absolute',
                       right: 0,
                       top: 'calc(100% + 6px)',
-                      backgroundColor: '#fff',
+                      backgroundColor: 'var(--surface)',
                       border: '1px solid var(--line)',
                       borderRadius: '0.65rem',
                       boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
@@ -826,7 +826,7 @@ const Chats = () => {
                     width: '38px',
                     height: '38px',
                     borderRadius: '0.35rem',
-                    backgroundColor: '#fff',
+                    backgroundColor: 'var(--surface-raised)',
                     border: '1px solid var(--line)',
                     overflow: 'hidden',
                     display: 'flex',
@@ -868,7 +868,7 @@ const Chats = () => {
                   onClick={() => navigate('/app/marketplace')}
                   style={{
                     border: '1px solid var(--line)',
-                    backgroundColor: '#fff',
+                    backgroundColor: 'var(--surface-raised)',
                     color: 'var(--ink)',
                     padding: '0.35rem 0.65rem',
                     borderRadius: '0.35rem',
@@ -888,7 +888,7 @@ const Chats = () => {
               flex: 1,
               overflowY: 'auto',
               padding: '1.25rem',
-              backgroundColor: '#fbf9f4',
+              backgroundColor: 'var(--cream)',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.75rem'
@@ -944,7 +944,7 @@ const Chats = () => {
                             padding: '0.5rem 0.85rem',
                             borderRadius: '99px',
                             border: '1px solid var(--line)',
-                            backgroundColor: '#fff',
+                            backgroundColor: 'var(--surface-raised)',
                             color: 'var(--ink)',
                             fontSize: '0.82rem',
                             cursor: 'pointer',
@@ -1023,7 +1023,7 @@ const Chats = () => {
                         )}
                         <div style={{
                           maxWidth: '75%',
-                          backgroundColor: isMine ? 'var(--teal)' : '#fff',
+                          backgroundColor: isMine ? 'var(--teal)' : 'var(--surface-raised)',
                           color: isMine ? '#fff' : 'var(--ink)',
                           padding: '0.65rem 0.95rem',
                           borderRadius: isMine ? '1rem 1rem 0.25rem 1rem' : '1rem 1rem 1rem 0.25rem',
@@ -1068,7 +1068,7 @@ const Chats = () => {
             <div style={{
               padding: '0.85rem 1.25rem',
               borderTop: '1px solid var(--line)',
-              backgroundColor: '#fff',
+              backgroundColor: 'var(--surface)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem'
@@ -1125,7 +1125,7 @@ const Chats = () => {
             justifyContent: 'center',
             padding: '2rem',
             textAlign: 'center',
-            backgroundColor: '#faf8f5'
+            backgroundColor: 'var(--cream)'
           }}>
             <div style={{
               width: '64px',

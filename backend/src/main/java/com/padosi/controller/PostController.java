@@ -46,9 +46,11 @@ public class PostController {
     public List<PostResponse> getNearby(
             @AuthenticationPrincipal Long userId,
             @RequestParam(required = false) Integer radiusKm,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return postService.getNearbyPosts(userId, radiusKm, page, size);
+        return postService.getNearbyPosts(userId, radiusKm, q, category, page, size);
     }
 
     // ─── Create / Delete ──────────────────────────────────────────────────────

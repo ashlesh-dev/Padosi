@@ -18,10 +18,25 @@ const timeAgo = (iso) => {
 
 /** Map a PostType enum value to a display label + badge color. */
 const POST_TYPE_META = {
-  GENERAL:        { label: 'General',        emoji: '💬', color: 'var(--teal)',   bg: 'var(--mint)' },
-  ANNOUNCEMENT:   { label: 'Announcement',   emoji: '📢', color: 'var(--orange)', bg: '#fff4eb' },
-  QUESTION:       { label: 'Question',       emoji: '❓', color: '#7c3aed',       bg: '#f5f3ff' },
-  RECOMMENDATION: { label: 'Recommendation', emoji: '⭐', color: '#b45309',       bg: '#fffbeb' },
+  GENERAL: '💬',
+  ANNOUNCEMENT: '📢',
+  QUESTION: '❓',
+  RECOMMENDATION: '⭐',
+};
+
+const POST_CATEGORIES = [
+  'None', 'Restaurant', 'Grocery Store', 'Barber / Salon',
+  'Medical / Pharmacy', 'Dance Studio', 'Services', 'Events',
+];
+
+const POST_CATEGORY_EMOJI = {
+  Restaurant: '🍕',
+  'Grocery Store': '🛒',
+  'Barber / Salon': '💈',
+  'Medical / Pharmacy': '💊',
+  'Dance Studio': '💃',
+  Services: '🛠️',
+  Events: '🎉',
 };
 
 /** Deterministic avatar color from a name string. */
@@ -361,10 +376,11 @@ const PostCard = ({ post, currentUser, onDelete }) => {
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const menuRef = useRef(null);
 
   const isOwnPost = currentUser?.id === post.authorId;
-  const typeMeta = POST_TYPE_META[post.postType] || POST_TYPE_META.GENERAL;
+  const typeEmoji = POST_TYPE_META[post.postType] || POST_TYPE_META.GENERAL;
 
   // Close menu on outside click
   useEffect(() => {
@@ -448,20 +464,22 @@ const PostCard = ({ post, currentUser, onDelete }) => {
           >
             {post.authorName}
           </Link>
-          <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.1rem' }}>
-            {post.localityName}
-            {post.distanceKm > 0 && ` · ${post.distanceKm} km away`}
-            {' · '}{timeAgo(post.createdAt)}
+          <div className="post-meta-row" style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.1rem' }}>
+            <span>
+              {post.localityName}
+              {post.distanceKm > 0 && ` · ${post.distanceKm} km away`}
+              {' · '}{timeAgo(post.createdAt)}
+            </span>
+            <span role="img" className="post-type-emoji" title={`Post type: ${post.postType?.toLowerCase() || 'general'}`} aria-label={`Post type: ${post.postType?.toLowerCase() || 'general'}`}>
+              {typeEmoji}
+            </span>
+            {post.category && post.category !== 'None' && (
+              <span className="post-category-tag">
+                {POST_CATEGORY_EMOJI[post.category] || '📍'} {post.category}
+              </span>
+            )}
           </div>
         </div>
-        {/* Post type badge */}
-        <span style={{
-          fontSize: '0.68rem', fontWeight: '600', letterSpacing: '0.04em',
-          color: typeMeta.color, backgroundColor: typeMeta.bg,
-          borderRadius: '2rem', padding: '0.2rem 0.6rem', whiteSpace: 'nowrap',
-        }}>
-          {typeMeta.emoji} {typeMeta.label}
-        </span>
         {/* ··· Menu */}
         <div ref={menuRef} style={{ position: 'relative' }}>
           <button
@@ -505,14 +523,47 @@ const PostCard = ({ post, currentUser, onDelete }) => {
         </div>
       </div>
 
-      {/* ── IMAGE (full card width, Instagram-style) ── */}
+      {/* ── IMAGE (blurred background fill, crisp foreground — like Instagram/YouTube) ── */}
       {post.imageUrl && (
-        <div style={{ width: '100%', backgroundColor: '#f0f0f0', lineHeight: 0 }}>
+        <div style={{
+          width: '100%',
+          aspectRatio: '4 / 5',
+          maxHeight: '560px',
+          position: 'relative',
+          overflow: 'hidden',
+          lineHeight: 0,
+          backgroundColor: '#111',
+        }}>
+          {/* Blurred background layer — same image, covers gaps */}
+          <img
+            src={post.imageUrl}
+            alt=""
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              filter: 'blur(22px) brightness(0.55)',
+              transform: 'scale(1.08)',
+              pointerEvents: 'none',
+              userSelect: 'none',
+            }}
+          />
+          {/* Crisp foreground image — contained, centered */}
           <img
             src={post.imageUrl}
             alt="Post"
-            style={{ width: '100%', maxHeight: '520px', objectFit: 'cover', display: 'block' }}
-            onError={e => { e.currentTarget.parentElement.style.display = 'none'; }}
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: 'block',
+            }}
+            onError={e => { e.currentTarget.closest('div').style.display = 'none'; }}
           />
         </div>
       )}
@@ -583,8 +634,31 @@ const PostCard = ({ post, currentUser, onDelete }) => {
       <div style={{ padding: '0.1rem 1rem 0.6rem' }}>
         <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.65, color: 'var(--ink)' }}>
           <strong style={{ marginRight: '0.4rem' }}>{post.authorName}</strong>
-          {post.content}
+          <span
+            style={{
+              display: captionExpanded ? 'inline' : '-webkit-box',
+              WebkitLineClamp: captionExpanded ? undefined : 1,
+              WebkitBoxOrient: 'vertical',
+              overflow: captionExpanded ? 'visible' : 'hidden',
+              verticalAlign: 'middle',
+            }}
+          >
+            {post.content}
+          </span>
         </p>
+        {post.content && post.content.length > 60 && (
+          <button
+            onClick={() => setCaptionExpanded(e => !e)}
+            style={{
+              background: 'none', border: 'none', padding: '0.1rem 0 0',
+              cursor: 'pointer', color: 'var(--muted)',
+              fontSize: '0.82rem', fontFamily: 'var(--sans)',
+              fontWeight: '600',
+            }}
+          >
+            {captionExpanded ? 'View less' : 'View more'}
+          </button>
+        )}
       </div>
 
       {/* ── COMMENTS ── */}
@@ -609,6 +683,7 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
   const [expanded, setExpanded] = useState(false);
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState('GENERAL');
+  const [category, setCategory] = useState('None');
   const [imageFile, setImageFile] = useState(null);       // File object from input
   const [imagePreview, setImagePreview] = useState('');   // local blob URL for preview
   const [uploading, setUploading] = useState(false);
@@ -671,16 +746,20 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
       const res = await api.post('/posts', {
         content: content.trim(),
         postType,
+        category,
         imageUrl: finalImageUrl,
       });
       onCreated(res.data);
       // Reset form
       setContent('');
       setPostType('GENERAL');
+      setCategory('None');
       removeImage();
       setExpanded(false);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create post. Please try again.');
+      setError(err.response?.status >= 500
+        ? 'Post could not be saved. Run database/migrations/20261015_add_feed_categories_and_handles.sql in Supabase SQL Editor, then try again.'
+        : err.response?.data?.message || 'Failed to create post. Please try again.');
     } finally {
       setPosting(false);
     }
@@ -766,7 +845,7 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
             style={{ display: 'none' }}
           />
 
-          {/* Bottom bar: photo button + type selector + actions */}
+          {/* Bottom bar: photo, category and post type selectors + actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             {/* Photo upload button */}
             <button
@@ -785,21 +864,40 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
               {imageFile ? imageFile.name.slice(0, 18) + '…' : 'Photo'}
             </button>
 
-            {/* Post type */}
-            <select
-              value={postType}
-              onChange={e => setPostType(e.target.value)}
-              style={{
-                border: '1.5px solid var(--line)', borderRadius: '0.4rem',
-                padding: '0.35rem 0.6rem', fontSize: '0.82rem', color: 'var(--ink)',
-                backgroundColor: '#fff', cursor: 'pointer', fontFamily: 'var(--sans)',
-              }}
-            >
-              <option value="GENERAL">💬 General</option>
-              <option value="ANNOUNCEMENT">📢 Announcement</option>
-              <option value="QUESTION">❓ Question</option>
-              <option value="RECOMMENDATION">⭐ Recommendation</option>
-            </select>
+            <label className="post-selector">
+              <span>Category / Business Tag</span>
+              <select
+                aria-label="Category / Business Tag"
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                style={{
+                  border: '1.5px solid var(--line)', borderRadius: '0.4rem',
+                  padding: '0.35rem 0.6rem', fontSize: '0.82rem', color: 'var(--ink)',
+                  backgroundColor: 'var(--surface)', cursor: 'pointer', fontFamily: 'var(--sans)',
+                }}
+              >
+                {POST_CATEGORIES.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </label>
+
+            <label className="post-selector">
+              <span>Post Type</span>
+              <select
+                aria-label="Post Type"
+                value={postType}
+                onChange={e => setPostType(e.target.value)}
+                style={{
+                  border: '1.5px solid var(--line)', borderRadius: '0.4rem',
+                  padding: '0.35rem 0.6rem', fontSize: '0.82rem', color: 'var(--ink)',
+                  backgroundColor: 'var(--surface)', cursor: 'pointer', fontFamily: 'var(--sans)',
+                }}
+              >
+                <option value="GENERAL">General</option>
+                <option value="QUESTION">Question</option>
+                <option value="RECOMMENDATION">Recommendation</option>
+                <option value="ANNOUNCEMENT">Announcement</option>
+              </select>
+            </label>
 
             {/* Spacer */}
             <div style={{ flex: 1 }} />
@@ -852,15 +950,22 @@ const Feed = () => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [people, setPeople] = useState([]);
+  const [peopleLoading, setPeopleLoading] = useState(false);
   const PAGE_SIZE = 10;
 
   /** Load page 0 (clears list). Called when radius changes. */
-  const fetchPosts = useCallback(async (radius) => {
+  const fetchPosts = useCallback(async (radius, query = '', category = '') => {
     setLoading(true);
     setError('');
     setPosts([]);
     try {
-      const res = await api.get('/posts', { params: { radiusKm: radius, page: 0, size: PAGE_SIZE } });
+      const res = await api.get('/posts', { params: {
+        radiusKm: radius, page: 0, size: PAGE_SIZE,
+        q: query.trim() || undefined, category: category || undefined,
+      } });
       setPosts(res.data);
       setPage(1);
       setHasMore(res.data.length === PAGE_SIZE);
@@ -871,14 +976,42 @@ const Feed = () => {
     }
   }, []);
 
-  useEffect(() => { fetchPosts(radiusKm); }, [radiusKm, fetchPosts]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => fetchPosts(radiusKm, searchTerm, selectedCategory), 220);
+    return () => clearTimeout(timeoutId);
+  }, [radiusKm, searchTerm, selectedCategory, fetchPosts]);
+
+  useEffect(() => {
+    const query = searchTerm.trim();
+    let active = true;
+    if (!query) {
+      setPeople([]);
+      setPeopleLoading(false);
+      return () => { active = false; };
+    }
+    const timeoutId = setTimeout(async () => {
+      setPeopleLoading(true);
+      try {
+        const res = await api.get('/users/search', { params: { q: query } });
+        if (active) setPeople(res.data);
+      } catch {
+        if (active) setPeople([]);
+      } finally {
+        if (active) setPeopleLoading(false);
+      }
+    }, 220);
+    return () => { active = false; clearTimeout(timeoutId); };
+  }, [searchTerm]);
 
   /** Append next page. */
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      const res = await api.get('/posts', { params: { radiusKm, page, size: PAGE_SIZE } });
+      const res = await api.get('/posts', { params: {
+        radiusKm, page, size: PAGE_SIZE,
+        q: searchTerm.trim() || undefined, category: selectedCategory || undefined,
+      } });
       setPosts(prev => [...prev, ...res.data]);
       setPage(p => p + 1);
       setHasMore(res.data.length === PAGE_SIZE);
@@ -941,6 +1074,27 @@ const Feed = () => {
         }
         .load-more-btn:hover:not(:disabled) { background: var(--mint); }
         .load-more-btn:disabled { opacity: 0.6; cursor: default; }
+        .post-category-tag {
+          display: inline-flex; align-items: center; flex-shrink: 0; padding: .2rem .5rem; border-radius: 999px;
+          background: var(--mint); color: var(--teal); font-size: .68rem; font-weight: 700;
+        }
+        .post-meta-row { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .5rem; }
+        .post-type-emoji { font-size: .92rem; line-height: 1; }
+        .post-selector { display: grid; gap: .2rem; color: var(--muted); font: 600 .68rem var(--sans); }
+        .feed-search-input {
+          width: 100%; border: 1px solid var(--line); border-radius: 999px;
+          padding: .72rem 1rem; background: var(--surface); color: var(--ink);
+          font: .9rem var(--sans); outline: none;
+        }
+        .feed-search-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 15%, transparent); }
+        .feed-category-pill {
+          border: 1px solid var(--line); border-radius: 999px; padding: .38rem .7rem;
+          background: var(--surface); color: var(--muted); font: 600 .76rem var(--sans); cursor: pointer;
+          white-space: nowrap;
+        }
+        .feed-category-pill.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+        .feed-people-result { display: flex; align-items: center; gap: .7rem; padding: .65rem .75rem; color: var(--ink); text-decoration: none; border-radius: .65rem; }
+        .feed-people-result:hover { background: var(--cream); }
       `}</style>
 
       {/* Centered Instagram-style feed column */}
@@ -955,6 +1109,44 @@ const Feed = () => {
             Posts from neighbours within <strong>{radiusKm} km</strong>
           </p>
         </div>
+
+        {/* Search people and posts */}
+        <div style={{ marginBottom: '1rem' }}>
+          <input
+            className="feed-search-input"
+            type="search"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Search people, posts, #hashtags, or categories"
+            aria-label="Search community feed"
+          />
+          <div style={{ display: 'flex', gap: '.45rem', overflowX: 'auto', padding: '.65rem 0 .2rem' }}>
+            <button className={`feed-category-pill${selectedCategory === '' ? ' active' : ''}`} onClick={() => setSelectedCategory('')}>All</button>
+            {POST_CATEGORIES.map(category => (
+              <button
+                key={category}
+                className={`feed-category-pill${selectedCategory === category ? ' active' : ''}`}
+                onClick={() => setSelectedCategory(current => current === category ? '' : category)}
+              >{category}</button>
+            ))}
+          </div>
+        </div>
+
+        {!!searchTerm.trim() && (
+          <section aria-label="People search results" style={{ marginBottom: '1rem' }}>
+            {people.length > 0 && <h2 style={{ fontSize: '.82rem', color: 'var(--muted)', margin: '0 0 .35rem .25rem' }}>PEOPLE</h2>}
+            {people.map(person => (
+              <Link className="feed-people-result" key={person.id} to={`/app/users/${person.id}`}>
+                <Avatar name={person.fullName} avatarUrl={person.avatarUrl} size={38} />
+                <span style={{ minWidth: 0 }}>
+                  <strong style={{ display: 'block', fontSize: '.88rem' }}>{person.fullName}</strong>
+                  <span style={{ color: 'var(--muted)', fontSize: '.76rem' }}>@{person.handle} · {person.localityName}</span>
+                </span>
+              </Link>
+            ))}
+            {peopleLoading && <p style={{ color: 'var(--muted)', fontSize: '.8rem', paddingLeft: '.3rem' }}>Searching people…</p>}
+          </section>
+        )}
 
         {/* Radius pills */}
         <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.1rem', alignItems: 'center' }}>
@@ -980,7 +1172,7 @@ const Feed = () => {
             padding: '0.9rem 1rem', color: '#be123c', fontSize: '0.875rem', marginBottom: '1rem',
           }}>
             ⚠️ {error}{' '}
-            <button onClick={() => fetchPosts(radiusKm)} style={{
+            <button onClick={() => fetchPosts(radiusKm, searchTerm, selectedCategory)} style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: '#be123c', fontWeight: '700', fontSize: '0.875rem', textDecoration: 'underline',
             }}>Retry</button>
@@ -991,7 +1183,7 @@ const Feed = () => {
         {loading && [1, 2, 3].map(n => <PostSkeleton key={n} />)}
 
         {/* Empty state */}
-        {!loading && !error && posts.length === 0 && (
+        {!loading && !error && posts.length === 0 && !(searchTerm.trim() || selectedCategory) && (
           <div style={{
             textAlign: 'center', padding: '4rem 2rem',
             backgroundColor: '#fff', borderRadius: '0.85rem', border: '1px solid var(--line)',
@@ -1004,6 +1196,17 @@ const Feed = () => {
               Be the first to share something with your neighbourhood!
             </p>
           </div>
+        )}
+
+        {!loading && !error && posts.length === 0 && (searchTerm.trim() || selectedCategory) && !peopleLoading && people.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '.85rem' }}>
+            <p style={{ color: 'var(--ink)', fontWeight: 700, margin: '0 0 .35rem' }}>No results found</p>
+            <p style={{ color: 'var(--muted)', fontSize: '.88rem', margin: 0 }}>Try another name, keyword, hashtag, or category.</p>
+          </div>
+        )}
+
+        {!loading && !error && posts.length === 0 && (searchTerm.trim() || selectedCategory) && people.length > 0 && (
+          <p style={{ color: 'var(--muted)', textAlign: 'center', fontSize: '.88rem' }}>No matching posts found.</p>
         )}
 
         {/* Post list */}

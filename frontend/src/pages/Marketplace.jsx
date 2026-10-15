@@ -407,6 +407,7 @@ const Marketplace = () => {
 
         <button 
           onClick={() => setIsCreateOpen(true)}
+          className="marketplace-create-listing"
           style={{ width: '100%', padding: '0.75rem', backgroundColor: '#e2edf6', color: 'var(--ink)', borderRadius: '0.5rem', fontWeight: 'bold', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
           <span style={{ fontSize: '1.25rem', color: 'var(--teal)' }}>+</span> Create New Listing
         </button>

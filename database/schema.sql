@@ -47,6 +47,7 @@ create index idx_localities_center on localities using gist (center);
 create table users (
   id               bigint generated always as identity primary key,
   full_name        varchar(100) not null,
+  handle           varchar(40) not null,
   email            varchar(255) not null,
   password_hash    varchar(100) not null,                -- BCrypt hash, never plain text
   phone            varchar(15),
@@ -64,6 +65,7 @@ create table users (
 );
 -- Case-insensitive unique email
 create unique index uq_users_email on users (lower(email));
+create unique index uq_users_handle on users (lower(handle));
 create index idx_users_locality on users (locality_id);
 create index idx_users_location on users using gist (location);
 create trigger trg_users_updated before update on users
@@ -77,11 +79,13 @@ create table posts (
   author_id   bigint not null references users(id) on delete cascade,
   locality_id bigint not null references localities(id),
   post_type   varchar(20) not null default 'GENERAL',     -- GENERAL | ANNOUNCEMENT
+  category    varchar(40) not null default 'None',
   content     text not null,
   location    geography(Point, 4326) not null,            -- copied from author at creation
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
-  constraint chk_post_type check (post_type in ('GENERAL', 'ANNOUNCEMENT')),
+  constraint chk_post_type check (post_type in ('GENERAL', 'QUESTION', 'RECOMMENDATION', 'ANNOUNCEMENT')),
+  constraint chk_posts_category check (category in ('None', 'Restaurant', 'Grocery Store', 'Barber / Salon', 'Medical / Pharmacy', 'Dance Studio', 'Services', 'Events')),
   constraint chk_post_content check (length(trim(content)) > 0)
 );
 create index idx_posts_location on posts using gist (location);

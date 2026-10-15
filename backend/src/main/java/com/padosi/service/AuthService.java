@@ -16,6 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.Locale;
+import java.util.UUID;
 
 /** Register, login and "who am I". */
 @Service
@@ -73,6 +75,7 @@ public class AuthService {
 
         User user = User.builder()
                 .fullName(request.fullName().trim())
+                .handle(createHandle(request.fullName()))
                 .email(email)
                 .passwordHash(passwordEncoder.encode(request.password())) // BCrypt hash
                 .phone(blankToNull(request.phone()))
@@ -109,5 +112,14 @@ public class AuthService {
 
     private String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    private String createHandle(String fullName) {
+        String base = fullName.toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-|-$", "");
+        if (base.isBlank()) base = "neighbor";
+        if (base.length() > 30) base = base.substring(0, 30).replaceAll("-$", "");
+        return base + "-" + UUID.randomUUID().toString().substring(0, 6);
     }
 }

@@ -44,6 +44,32 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("offsetVal") int offsetVal
     );
 
+    @Query(value = """
+            SELECT p.* FROM posts p
+            JOIN users u ON u.id = p.author_id
+            WHERE ST_DWithin(
+                p.location,
+                ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
+                :radiusMeters
+            )
+            AND (CAST(:category AS varchar) IS NULL OR p.category = :category)
+            AND (CAST(:query AS text) IS NULL OR p.content ILIKE CONCAT('%', :query, '%')
+                 OR p.category ILIKE CONCAT('%', :query, '%')
+                 OR u.full_name ILIKE CONCAT('%', :query, '%')
+                 OR u.handle ILIKE CONCAT('%', REPLACE(:query, '@', ''), '%'))
+            ORDER BY p.created_at DESC
+            LIMIT :limit OFFSET :offsetVal
+            """, nativeQuery = true)
+    List<Post> findNearbyFiltered(
+            @Param("lat") double lat,
+            @Param("lon") double lon,
+            @Param("radiusMeters") double radiusMeters,
+            @Param("query") String query,
+            @Param("category") String category,
+            @Param("limit") int limit,
+            @Param("offsetVal") int offsetVal
+    );
+
     /**
      * Calculate the approximate distance in metres between a post and a point.
      * Used to compute distanceKm per post without exposing exact coordinates.

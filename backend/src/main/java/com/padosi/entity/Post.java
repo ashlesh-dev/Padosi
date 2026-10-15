@@ -36,6 +36,9 @@ public class Post {
     @Builder.Default
     private PostType postType = PostType.GENERAL;
 
+    @Column(nullable = false, length = 40)
+    private String category = "General";
+
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 

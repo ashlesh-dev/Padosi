@@ -2,6 +2,7 @@ package com.padosi.service;
 
 import com.padosi.dto.PostResponse;
 import com.padosi.dto.UserProfileResponse;
+import com.padosi.dto.UserSearchResponse;
 import com.padosi.entity.Post;
 import com.padosi.entity.User;
 import com.padosi.repository.*;
@@ -118,6 +119,16 @@ public class UserService {
                 .limit(effectiveSize)
                 .map(PostResponse::from)
                 .toList();
+    }
+
+    /** Find public people by display name or handle. */
+    @Transactional(readOnly = true)
+    public List<UserSearchResponse> searchUsers(String query) {
+        String normalized = query == null ? "" : query.trim().replaceFirst("^@", "");
+        if (normalized.isBlank()) return List.of();
+        return userRepository.searchActiveUsers(normalized, normalized,
+                        org.springframework.data.domain.PageRequest.of(0, 8))
+                .stream().map(UserSearchResponse::from).toList();
     }
 
     // ── Behaviour Score ───────────────────────────────────────────────────────
