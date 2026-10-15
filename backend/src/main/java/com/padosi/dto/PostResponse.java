@@ -15,6 +15,7 @@ public record PostResponse(
         String authorAvatarUrl,
         String localityName,
         String postType,
+        String category,
         String content,
         String imageUrl,         // optional image URL (temp: no upload yet)
         long likeCount,
@@ -35,6 +36,7 @@ public record PostResponse(
                 p.getAuthor().getAvatarUrl(),
                 p.getLocality().getName(),
                 p.getPostType().name(),
+                p.getCategory(),
                 p.getContent(),
                 p.getImages().isEmpty() ? null : p.getImages().get(0).getImageUrl(),
                 0L,
@@ -55,6 +57,7 @@ public record PostResponse(
                 p.getAuthor().getAvatarUrl(),
                 p.getLocality().getName(),
                 p.getPostType().name(),
+                p.getCategory(),
                 p.getContent(),
                 p.getImages().isEmpty() ? null : p.getImages().get(0).getImageUrl(),
                 likeCount,

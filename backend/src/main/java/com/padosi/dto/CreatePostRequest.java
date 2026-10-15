@@ -2,6 +2,7 @@ package com.padosi.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
 /** Body for creating a new community post. */
 public record CreatePostRequest(
@@ -11,6 +12,11 @@ public record CreatePostRequest(
 
         /** Optional post type; defaults to GENERAL on the backend if not provided. */
         String postType,
+
+        @NotBlank(message = "Post category is required")
+        @Pattern(regexp = "None|Restaurant|Grocery Store|Barber / Salon|Medical / Pharmacy|Dance Studio|Services|Events",
+                message = "Choose a valid post category")
+        String category,
 
         /**
          * Optional image URL — TEMPORARY placeholder until Supabase Storage uploads are wired.

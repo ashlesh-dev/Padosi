@@ -2,10 +2,12 @@ import { useContext, useState, useEffect } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/axiosInstance';
+import { useTheme } from '../context/ThemeContext';
 
 /** The persistent sidebar + topbar shell for all logged-in pages. */
 const AppShell = () => {
   const { user, logout } = useContext(AuthContext);
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -31,17 +33,17 @@ const AppShell = () => {
   };
 
   const navItems = [
-    { to: '/app/feed',        icon: '⌘',  label: 'Community Feed' },
-    { to: '/app/marketplace', icon: '♧',  label: 'Marketplace' },
-    { to: '/app/chats',       icon: '💬', label: 'Chats', badge: unreadCount },
-    { to: '/app/services',    icon: '♡',  label: 'Local Services' },
-    { to: '/app/alerts',      icon: '⚠',  label: 'Emergency Alerts' },
-    { to: '/app/lost-found',  icon: '◌',  label: 'Lost & Found' },
+    { to: '/app/feed', icon: '⌘', label: 'Community Feed' },
+    { to: '/app/marketplace', icon: '♧', label: 'Marketplace' },
+    { to: '/app/chats', icon: '💬', label: 'Chats', badge: unreadCount },
+    { to: '/app/services', icon: '♡', label: 'Local Services' },
+    { to: '/app/alerts', icon: '⚠', label: 'Emergency Alerts' },
+    { to: '/app/lost-found', icon: '◌', label: 'Lost & Found' },
     { to: `/app/users/${user?.id}`, icon: '👤', label: 'My Profile' },
   ];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--cream)' }}>
+    <div className="app-shell" style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--cream)' }}>
 
       {/* Sidebar overlay on mobile */}
       {sidebarOpen && (
@@ -52,10 +54,10 @@ const AppShell = () => {
       )}
 
       {/* Sidebar */}
-      <aside style={{
+      <aside data-open={sidebarOpen} className="app-sidebar" style={{
         width: '240px',
         flexShrink: 0,
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--surface)',
         borderRight: '1px solid var(--line)',
         display: 'flex',
         flexDirection: 'column',
@@ -119,6 +121,17 @@ const AppShell = () => {
           ))}
         </nav>
 
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          aria-pressed={theme === 'dark'}
+        >
+          <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
+          <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+        </button>
+
         {/* User profile footer */}
         <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <Link
@@ -172,7 +185,7 @@ const AppShell = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0.75rem 1rem',
-          backgroundColor: '#fff',
+          backgroundColor: 'var(--surface)',
           borderBottom: '1px solid var(--line)',
         }} className="app-topbar">
           <button onClick={() => setSidebarOpen(true)} style={{ border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>☰</button>
@@ -180,7 +193,7 @@ const AppShell = () => {
           <span style={{ width: '32px' }} />
         </header>
 
-        <main style={{ flex: 1, padding: '2rem 1.5rem', maxWidth: '100%' }}>
+        <main id="app-content" style={{ flex: 1, padding: '2rem 1.5rem', maxWidth: '100%' }}>
           <Outlet />
         </main>
       </div>

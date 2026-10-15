@@ -37,6 +37,7 @@ erDiagram
     USERS {
         bigint id PK
         varchar full_name
+        varchar handle
         varchar email UK
         varchar password_hash
         varchar phone
@@ -55,6 +56,7 @@ erDiagram
         bigint author_id FK
         bigint locality_id FK
         varchar post_type
+        varchar category
         text content
         geography location
         timestamptz created_at

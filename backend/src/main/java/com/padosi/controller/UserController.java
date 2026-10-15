@@ -2,6 +2,7 @@ package com.padosi.controller;
 
 import com.padosi.dto.PostResponse;
 import com.padosi.dto.UserProfileResponse;
+import com.padosi.dto.UserSearchResponse;
 import com.padosi.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,6 +36,12 @@ public class UserController {
     @GetMapping("/{id}")
     public UserProfileResponse getProfile(@PathVariable Long id) {
         return userService.getPublicProfile(id);
+    }
+
+    /** GET /api/users/search?q=maya — matches display names and handles. */
+    @GetMapping("/search")
+    public List<UserSearchResponse> searchUsers(@RequestParam String q) {
+        return userService.searchUsers(q);
     }
 
     /**

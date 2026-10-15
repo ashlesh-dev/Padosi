@@ -226,6 +226,7 @@ const timeAgo = (iso) => {
 
 const PostCard = ({ post }) => {
   const [hovered, setHovered] = useState(false);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const tc = typeColors[post.postType] || typeColors.GENERAL;
 
   return (
@@ -261,21 +262,67 @@ const PostCard = ({ post }) => {
       <p style={{
         margin: 0, fontSize: '0.9rem', lineHeight: 1.6,
         color: 'var(--ink)',
-        display: '-webkit-box', WebkitLineClamp: 4,
-        WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        display: captionExpanded ? 'block' : '-webkit-box',
+        WebkitLineClamp: captionExpanded ? undefined : 1,
+        WebkitBoxOrient: 'vertical',
+        overflow: captionExpanded ? 'visible' : 'hidden',
       }}>
         {post.content}
       </p>
+      {post.content && post.content.length > 60 && (
+        <button
+          onClick={() => setCaptionExpanded(e => !e)}
+          style={{
+            background: 'none', border: 'none', padding: '0.25rem 0 0',
+            cursor: 'pointer', color: 'var(--muted)',
+            fontSize: '0.82rem', fontFamily: 'var(--sans)',
+            fontWeight: '600',
+          }}
+        >
+          {captionExpanded ? 'View less' : 'View more'}
+        </button>
+      )}
 
       {/* Image preview */}
       {post.imageUrl && (
-        <img
-          src={post.imageUrl} alt=""
-          style={{
-            width: '100%', maxHeight: '180px', objectFit: 'cover',
-            borderRadius: '0.5rem', marginTop: '0.75rem',
-          }}
-        />
+        <div style={{
+          width: '100%',
+          aspectRatio: '4 / 5',
+          maxHeight: '560px',
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '0.5rem',
+          marginTop: '0.75rem',
+          backgroundColor: '#111',
+        }}>
+          {/* Blurred background layer */}
+          <img
+            src={post.imageUrl} alt="" aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              filter: 'blur(22px) brightness(0.55)',
+              transform: 'scale(1.08)',
+              pointerEvents: 'none',
+              userSelect: 'none',
+            }}
+          />
+          {/* Crisp foreground image */}
+          <img
+            src={post.imageUrl} alt=""
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: 'block',
+            }}
+          />
+        </div>
       )}
 
       {/* Footer: likes + comments + locality */}

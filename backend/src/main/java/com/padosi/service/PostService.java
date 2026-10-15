@@ -55,7 +55,7 @@ public class PostService {
      * @param size     items per page (defaults to PAGE_SIZE)
      */
     @Transactional(readOnly = true)
-    public List<PostResponse> getNearbyPosts(Long userId, Integer radiusKm, int page, int size) {
+    public List<PostResponse> getNearbyPosts(Long userId, Integer radiusKm, String query, String category, int page, int size) {
         User user = getUser(userId);
 
         // Use override radius or fall back to the user's stored preference
@@ -66,7 +66,9 @@ public class PostService {
         int effectiveSize = (size > 0 && size <= 50) ? size : PAGE_SIZE;
         int offset = page * effectiveSize;
 
-        List<Post> posts = postRepository.findNearby(lat, lon, radiusMetres, effectiveSize, offset);
+        String search = query == null || query.isBlank() ? null : query.trim();
+        String selectedCategory = category == null || category.isBlank() ? null : category.trim();
+        List<Post> posts = postRepository.findNearbyFiltered(lat, lon, radiusMetres, search, selectedCategory, effectiveSize, offset);
 
         return posts.stream().map(post -> {
             long likeCount    = postLikeRepository.countByIdPostId(post.getId());
@@ -100,6 +102,7 @@ public class PostService {
                 .author(user)
                 .locality(user.getLocality())
                 .postType(type)
+                .category(request.category().trim())
                 .content(request.content().trim())
                 .location(user.getLocation()) // post is at author's location
                 .build();
