@@ -2,9 +2,12 @@ package com.padosi.controller;
 
 import com.padosi.dto.AlertResponse;
 import com.padosi.dto.LostFoundResponse;
+import com.padosi.dto.CreateLostFoundRequest;
 import com.padosi.service.AlertService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -30,5 +33,18 @@ public class AlertController {
     @GetMapping("/lost-found")
     public List<LostFoundResponse> getNearbyLostFound(@AuthenticationPrincipal Long userId) {
         return alertService.getNearbyLostFound(userId);
+    }
+
+    @PostMapping("/lost-found")
+    @ResponseStatus(HttpStatus.CREATED)
+    public LostFoundResponse createLostFound(@AuthenticationPrincipal Long userId,
+                                              @Valid @RequestBody CreateLostFoundRequest request) {
+        return alertService.createLostFound(userId, request);
+    }
+
+    @DeleteMapping("/lost-found/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteLostFound(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
+        alertService.deleteLostFound(userId, id);
     }
 }

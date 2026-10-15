@@ -37,6 +37,10 @@ public class LostFoundItem {
     @Column(nullable = false, length = 150)
     private String title;
 
+    @Column(nullable = false, length = 40)
+    @Builder.Default
+    private String category = "OTHER";
+
     @Column(columnDefinition = "text")
     private String description;
 
