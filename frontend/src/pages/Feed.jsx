@@ -16,12 +16,24 @@ const timeAgo = (iso) => {
   return `${Math.floor(diff / 86400)}d ago`;
 };
 
+/** Format an ISO timestamp as a full readable date + time string. */
+const formatDateTime = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-IN', {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  }) + ' at ' + d.toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+};
+
 /** Map a PostType enum value to a display label + badge color. */
 const POST_TYPE_META = {
   GENERAL: '💬',
   ANNOUNCEMENT: '📢',
   QUESTION: '❓',
   RECOMMENDATION: '⭐',
+  EMERGENCY_ALERT: '🚨',
 };
 
 const POST_CATEGORIES = [
@@ -896,6 +908,7 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
                 <option value="QUESTION">Question</option>
                 <option value="RECOMMENDATION">Recommendation</option>
                 <option value="ANNOUNCEMENT">Announcement</option>
+                <option value="EMERGENCY_ALERT">🚨 Emergency Alert</option>
               </select>
             </label>
 
@@ -938,6 +951,195 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
   );
 };
 
+// ─── Emergency Alert Popup ────────────────────────────────────────────────────
+
+/**
+ * Floating popup at the top-right of the Community Feed that auto-displays
+ * emergency alerts (posts with type EMERGENCY_ALERT) from nearby neighbours.
+ * Includes fade-in animation, red border, and a close (×) button.
+ */
+const EmergencyAlertPopup = ({ radiusKm, extraAlerts = [] }) => {
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [expandedAlertId, setExpandedAlertId] = useState(null);
+
+  // Fetch emergency alerts from the regular posts endpoint filtered by postType
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const res = await api.get('/posts', {
+        params: { radiusKm, page: 0, size: 20 },
+      });
+      // Filter only EMERGENCY_ALERT posts from the response
+      const emergencyPosts = res.data.filter(p => p.postType === 'EMERGENCY_ALERT');
+      setAlerts(emergencyPosts);
+    } catch {
+      // Silent fail — don't break the feed
+    } finally {
+      setLoading(false);
+    }
+  }, [radiusKm]);
+
+  useEffect(() => {
+    fetchAlerts();
+  }, [fetchAlerts]);
+
+  // Merge any alerts the user just created (live insertion)
+  useEffect(() => {
+    if (extraAlerts.length > 0) {
+      setAlerts(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const newOnes = extraAlerts.filter(a => !existingIds.has(a.id));
+        if (newOnes.length === 0) return prev;
+        // Re-open popup if it was dismissed and new alerts arrive
+        setDismissed(false);
+        return [...newOnes, ...prev];
+      });
+    }
+  }, [extraAlerts]);
+
+  // Trigger fade-in after first render
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 80);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Nothing to show
+  if (dismissed || (alerts.length === 0 && !loading)) return null;
+
+  const expandedAlert = expandedAlertId ? alerts.find(a => a.id === expandedAlertId) : null;
+
+  return (
+    <div
+      className="emergency-popup"
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(-12px)',
+      }}
+    >
+      {/* Close button */}
+      <button
+        className="emergency-popup-close"
+        onClick={() => { setDismissed(true); setExpandedAlertId(null); }}
+        aria-label="Dismiss emergency alerts"
+      >
+        ×
+      </button>
+
+      {/* Heading */}
+      <div className="emergency-popup-header">
+        <span className="emergency-popup-icon">⚠️</span>
+        <span>ALERTS</span>
+        {alerts.length > 0 && (
+          <span style={{ marginLeft: 'auto', fontSize: '0.72rem', fontWeight: 600, opacity: 0.7, marginRight: '1.2rem' }}>
+            {alerts.length}
+          </span>
+        )}
+      </div>
+
+      {/* ── Expanded detail card ── */}
+      {expandedAlert ? (
+        <div className="emergency-detail" key={expandedAlert.id}>
+          {/* Back button */}
+          <button
+            className="emergency-detail-back"
+            onClick={() => setExpandedAlertId(null)}
+          >
+            ← Back to alerts
+          </button>
+
+          {/* Author row */}
+          <div className="emergency-detail-author">
+            <Link to={`/app/users/${expandedAlert.authorId}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+              <Avatar name={expandedAlert.authorName} avatarUrl={expandedAlert.authorAvatarUrl} size={36} />
+            </Link>
+            <div style={{ minWidth: 0 }}>
+              <Link
+                to={`/app/users/${expandedAlert.authorId}`}
+                style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--ink)', textDecoration: 'none', display: 'block' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--teal)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--ink)'}
+              >
+                {expandedAlert.authorName}
+              </Link>
+              <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+                {expandedAlert.localityName}
+                {expandedAlert.distanceKm > 0 && ` · ${expandedAlert.distanceKm} km away`}
+              </span>
+            </div>
+          </div>
+
+          {/* Alert description */}
+          <p className="emergency-detail-content">{expandedAlert.content}</p>
+
+          {/* Image (if any) */}
+          {expandedAlert.imageUrl && (
+            <img
+              src={expandedAlert.imageUrl}
+              alt="Alert"
+              style={{
+                width: '100%', borderRadius: '0.5rem', maxHeight: '200px',
+                objectFit: 'cover', marginBottom: '0.7rem',
+              }}
+            />
+          )}
+
+          {/* Meta details */}
+          <div className="emergency-detail-meta">
+            <div className="emergency-detail-meta-row">
+              <span className="emergency-detail-meta-label">📍 Location</span>
+              <span>{expandedAlert.localityName}{expandedAlert.distanceKm > 0 ? ` (${expandedAlert.distanceKm} km)` : ''}</span>
+            </div>
+            <div className="emergency-detail-meta-row">
+              <span className="emergency-detail-meta-label">🕐 Date & Time</span>
+              <span>{formatDateTime(expandedAlert.createdAt)}</span>
+            </div>
+            <div className="emergency-detail-meta-row">
+              <span className="emergency-detail-meta-label">🏷️ Category</span>
+              <span>{expandedAlert.category && expandedAlert.category !== 'None' ? expandedAlert.category : 'Emergency'}</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ── Alert list view ── */
+        <div className="emergency-popup-body">
+          {loading && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0 }}>Loading alerts…</p>
+          )}
+          {!loading && alerts.length === 0 && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: 0 }}>No emergency alerts nearby.</p>
+          )}
+          {alerts.map((alert, idx) => (
+            <div
+              key={alert.id}
+              className="emergency-popup-item"
+              style={{ animationDelay: `${idx * 0.08}s`, cursor: 'pointer' }}
+              onClick={() => setExpandedAlertId(alert.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setExpandedAlertId(alert.id); }}
+            >
+              <div className="emergency-popup-item-header">
+                <Avatar name={alert.authorName} avatarUrl={alert.authorAvatarUrl} size={26} />
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--ink)' }}>
+                    {alert.authorName}
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--muted)', marginLeft: '0.4rem' }}>
+                    {alert.localityName} · {timeAgo(alert.createdAt)}
+                  </span>
+                </div>
+              </div>
+              <p className="emergency-popup-item-content">{alert.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Feed Page ───────────────────────────────────────────────────────────
 
 /** Community feed page — Instagram-style, radius-filtered. */
@@ -950,6 +1152,7 @@ const Feed = () => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [newEmergencyAlerts, setNewEmergencyAlerts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [people, setPeople] = useState([]);
@@ -1045,6 +1248,10 @@ const Feed = () => {
           from { opacity: 0; transform: translateY(3px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes alertSlideIn {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
         .rpill {
           padding: 0.28rem 0.85rem;
           border-radius: 2rem;
@@ -1095,7 +1302,176 @@ const Feed = () => {
         .feed-category-pill.active { background: var(--teal); border-color: var(--teal); color: #fff; }
         .feed-people-result { display: flex; align-items: center; gap: .7rem; padding: .65rem .75rem; color: var(--ink); text-decoration: none; border-radius: .65rem; }
         .feed-people-result:hover { background: var(--cream); }
+
+        /* ── Emergency Alert Popup ── */
+        .emergency-popup {
+          position: fixed;
+          top: 5.5rem;
+          right: 1.25rem;
+          width: 340px;
+          max-height: calc(100vh - 7rem);
+          background: var(--surface);
+          border: 2px solid #dc2626;
+          border-radius: 0.85rem;
+          box-shadow: 0 8px 32px rgba(220,38,38,0.18), 0 2px 8px rgba(0,0,0,0.08);
+          z-index: 900;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+        .emergency-popup-close {
+          position: absolute;
+          top: 0.55rem;
+          right: 0.6rem;
+          background: none;
+          border: none;
+          font-size: 1.35rem;
+          color: var(--muted);
+          cursor: pointer;
+          line-height: 1;
+          padding: 0.15rem 0.35rem;
+          border-radius: 4px;
+          transition: color 0.15s, background 0.15s;
+        }
+        .emergency-popup-close:hover {
+          color: #dc2626;
+          background: #fef2f2;
+        }
+        .emergency-popup-header {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          padding: 0.7rem 1rem;
+          border-bottom: 1px solid #fecaca;
+          background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+          font-weight: 800;
+          font-size: 0.88rem;
+          color: #dc2626;
+          letter-spacing: 0.06em;
+          font-family: var(--sans);
+        }
+        .emergency-popup-icon {
+          font-size: 1.1rem;
+          animation: alertPulse 2s ease-in-out infinite;
+        }
+        @keyframes alertPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.15); }
+        }
+        .emergency-popup-body {
+          padding: 0.65rem 0.85rem;
+          overflow-y: auto;
+          flex: 1;
+          max-height: 380px;
+        }
+        .emergency-popup-item {
+          padding: 0.6rem 0.45rem;
+          border-bottom: 1px solid var(--line);
+          animation: alertSlideIn 0.35s ease both;
+          border-radius: 0.45rem;
+          transition: background 0.15s;
+        }
+        .emergency-popup-item:hover {
+          background: #fef2f2;
+        }
+        .emergency-popup-item:last-child { border-bottom: none; }
+        .emergency-popup-item-header {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          margin-bottom: 0.3rem;
+        }
+        .emergency-popup-item-content {
+          margin: 0;
+          font-size: 0.82rem;
+          color: var(--ink);
+          line-height: 1.5;
+          padding-left: 2.15rem;
+          word-break: break-word;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        /* ── Expanded detail card ── */
+        @keyframes detailFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .emergency-detail {
+          padding: 0.75rem 1rem 1rem;
+          overflow-y: auto;
+          max-height: 420px;
+          animation: detailFadeIn 0.3s ease both;
+        }
+        .emergency-detail-back {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: var(--teal);
+          font-weight: 600;
+          font-size: 0.78rem;
+          font-family: var(--sans);
+          padding: 0.2rem 0;
+          margin-bottom: 0.65rem;
+          display: inline-flex;
+          align-items: center;
+          transition: color 0.15s;
+        }
+        .emergency-detail-back:hover { color: var(--ink); }
+        .emergency-detail-author {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          margin-bottom: 0.7rem;
+        }
+        .emergency-detail-content {
+          margin: 0 0 0.75rem;
+          font-size: 0.9rem;
+          color: var(--ink);
+          line-height: 1.65;
+          word-break: break-word;
+        }
+        .emergency-detail-meta {
+          background: var(--cream);
+          border: 1px solid var(--line);
+          border-radius: 0.6rem;
+          padding: 0.55rem 0.75rem;
+        }
+        .emergency-detail-meta-row {
+          display: flex;
+          align-items: baseline;
+          gap: 0.5rem;
+          padding: 0.3rem 0;
+          font-size: 0.8rem;
+          color: var(--ink);
+        }
+        .emergency-detail-meta-row + .emergency-detail-meta-row {
+          border-top: 1px solid var(--line);
+        }
+        .emergency-detail-meta-label {
+          font-weight: 700;
+          font-size: 0.72rem;
+          color: var(--muted);
+          min-width: 6.5rem;
+          flex-shrink: 0;
+        }
+
+        /* Responsive: collapse popup on narrow screens */
+        @media (max-width: 768px) {
+          .emergency-popup {
+            left: 0.5rem;
+            right: 0.5rem;
+            width: auto;
+            top: 4.5rem;
+          }
+        }
       `}</style>
+
+      {/* Emergency Alert Popup — floats at top-right corner of the Community Feed */}
+      <EmergencyAlertPopup radiusKm={radiusKm} extraAlerts={newEmergencyAlerts} />
 
       {/* Centered Instagram-style feed column */}
       <div style={{ maxWidth: '614px', margin: '0 auto', paddingBottom: '2rem' }}>
@@ -1162,7 +1538,13 @@ const Feed = () => {
         {/* Create post */}
         <CreatePostBox
           currentUser={user}
-          onCreated={(newPost) => setPosts(prev => [newPost, ...prev])}
+          onCreated={(newPost) => {
+            setPosts(prev => [newPost, ...prev]);
+            // If the new post is an emergency alert, push it into the popup too
+            if (newPost.postType === 'EMERGENCY_ALERT') {
+              setNewEmergencyAlerts(prev => [newPost, ...prev]);
+            }
+          }}
         />
 
         {/* Error banner */}

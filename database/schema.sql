@@ -84,7 +84,7 @@ create table posts (
   location    geography(Point, 4326) not null,            -- copied from author at creation
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
-  constraint chk_post_type check (post_type in ('GENERAL', 'QUESTION', 'RECOMMENDATION', 'ANNOUNCEMENT')),
+  constraint chk_post_type check (post_type in ('GENERAL', 'QUESTION', 'RECOMMENDATION', 'ANNOUNCEMENT', 'EMERGENCY_ALERT')),
   constraint chk_posts_category check (category in ('None', 'Restaurant', 'Grocery Store', 'Barber / Salon', 'Medical / Pharmacy', 'Dance Studio', 'Services', 'Events')),
   constraint chk_post_content check (length(trim(content)) > 0)
 );

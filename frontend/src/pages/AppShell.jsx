@@ -37,7 +37,6 @@ const AppShell = () => {
     { to: '/app/marketplace', icon: '♧', label: 'Marketplace' },
     { to: '/app/chats', icon: '💬', label: 'Chats', badge: unreadCount },
     { to: '/app/services', icon: '♡', label: 'Local Services' },
-    { to: '/app/alerts', icon: '⚠', label: 'Emergency Alerts' },
     { to: '/app/lost-found', icon: '◌', label: 'Lost & Found' },
     { to: `/app/users/${user?.id}`, icon: '👤', label: 'My Profile' },
   ];
