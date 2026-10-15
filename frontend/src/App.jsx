@@ -12,6 +12,8 @@ import Alerts from './pages/Alerts';
 import LostFound from './pages/LostFound';
 import UserProfilePage from './pages/UserProfilePage';
 import Chats from './pages/Chats';
+import Profile from './pages/Profile';
+import PadosiCoins from './pages/PadosiCoins';
 
 /** Wraps routes that require a logged-in user. */
 const ProtectedRoute = ({ children }) => {
@@ -47,8 +49,10 @@ function App() {
         <Route path="marketplace" element={<Marketplace />} />
         <Route path="chats" element={<Chats />} />
         <Route path="services" element={<Services />} />
+        <Route path="padosi-coins" element={<PadosiCoins />} />
         <Route path="alerts" element={<Alerts />} />
         <Route path="lost-found" element={<LostFound />} />
+        <Route path="account" element={<Profile />} />
         {/* Public user profiles — accessible from anywhere inside the app shell */}
         <Route path="users/:userId" element={<UserProfilePage />} />
       </Route>

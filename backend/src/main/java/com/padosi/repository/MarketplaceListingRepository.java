@@ -15,6 +15,7 @@ public interface MarketplaceListingRepository extends JpaRepository<MarketplaceL
     @Query(value = """
             SELECT m.* FROM marketplace_listings m
             WHERE m.status = 'AVAILABLE'
+              AND (m.expires_at IS NULL OR m.expires_at > now())
               AND ST_DWithin(m.location, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, :radiusMeters)
             ORDER BY m.created_at DESC
             LIMIT :limit

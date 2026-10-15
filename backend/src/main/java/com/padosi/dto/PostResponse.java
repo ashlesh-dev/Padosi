@@ -12,16 +12,24 @@ public record PostResponse(
         Long id,
         Long authorId,
         String authorName,
+        String authorHandle,
         String authorAvatarUrl,
+        boolean authorIsBusiness,        // shows "Professional Account" badge in feed
+        String authorCompanyName,        // e.g. "Pizzeria Roma" — displayed for business posts
         String localityName,
         String postType,
         String category,
         String content,
-        String imageUrl,         // optional image URL (temp: no upload yet)
+        String imageUrl,
         long likeCount,
         long commentCount,
         boolean likedByMe,
-        double distanceKm,       // approximate distance, not exact coords
+        double distanceKm,
+        // ── Ad fields ──────────────────────────────────────────────────────────
+        boolean isAd,                    // true → show "Sponsored" tag in feed
+        Short adRadiusKm,
+        Short adDurationDays,
+        Instant adExpiresAt,
         Instant createdAt
 ) {
     /**
@@ -29,11 +37,16 @@ public record PostResponse(
      * (e.g., right after creating a post).
      */
     public static PostResponse from(Post p) {
+        var author = p.getAuthor();
+        boolean isBusiness = "BUSINESS".equals(author.getAccountType());
         return new PostResponse(
                 p.getId(),
-                p.getAuthor().getId(),
-                p.getAuthor().getFullName(),
-                p.getAuthor().getAvatarUrl(),
+                author.getId(),
+                author.getFullName(),
+                author.getHandle(),
+                author.getAvatarUrl(),
+                isBusiness,
+                isBusiness ? author.getCompanyName() : null,
                 p.getLocality().getName(),
                 p.getPostType().name(),
                 p.getCategory(),
@@ -43,6 +56,10 @@ public record PostResponse(
                 0L,
                 false,
                 0.0,
+                Boolean.TRUE.equals(p.getIsAd()),
+                p.getAdRadiusKm(),
+                p.getAdDurationDays(),
+                p.getAdExpiresAt(),
                 p.getCreatedAt()
         );
     }
@@ -50,11 +67,16 @@ public record PostResponse(
     /** Full factory used when fetching feed with counts and distance. */
     public static PostResponse from(Post p, long likeCount, long commentCount,
                                     boolean likedByMe, double distanceKm) {
+        var author = p.getAuthor();
+        boolean isBusiness = "BUSINESS".equals(author.getAccountType());
         return new PostResponse(
                 p.getId(),
-                p.getAuthor().getId(),
-                p.getAuthor().getFullName(),
-                p.getAuthor().getAvatarUrl(),
+                author.getId(),
+                author.getFullName(),
+                author.getHandle(),
+                author.getAvatarUrl(),
+                isBusiness,
+                isBusiness ? author.getCompanyName() : null,
                 p.getLocality().getName(),
                 p.getPostType().name(),
                 p.getCategory(),
@@ -64,6 +86,10 @@ public record PostResponse(
                 commentCount,
                 likedByMe,
                 distanceKm,
+                Boolean.TRUE.equals(p.getIsAd()),
+                p.getAdRadiusKm(),
+                p.getAdDurationDays(),
+                p.getAdExpiresAt(),
                 p.getCreatedAt()
         );
     }

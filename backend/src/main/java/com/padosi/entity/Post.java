@@ -46,6 +46,27 @@ public class Post {
     @Column(nullable = false, columnDefinition = "geography(Point,4326)")
     private Point location;
 
+    // ── Ad / Sponsored Post fields ────────────────────────────────────────────
+
+    /** Whether this post is a paid advertisement (only allowed for BUSINESS accounts). */
+    @Column(name = "is_ad", nullable = false)
+    @Builder.Default
+    private Boolean isAd = false;
+
+    /** Ad targeting radius in km (1, 5, or 10). Null if not an ad. */
+    @Column(name = "ad_radius_km")
+    private Short adRadiusKm;
+
+    /** How many days the ad should run (7, 14, or 30). Null if not an ad. */
+    @Column(name = "ad_duration_days")
+    private Short adDurationDays;
+
+    /** Computed expiry timestamp. The feed query ignores ads past this point. */
+    @Column(name = "ad_expires_at")
+    private Instant adExpiresAt;
+
+    // ── Images ────────────────────────────────────────────────────────────────
+
     /** Photos of this post, shown in display_order. */
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")

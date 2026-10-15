@@ -1,12 +1,13 @@
 package com.padosi.service;
 
 import com.padosi.dto.PostResponse;
+import com.padosi.dto.UpdateBusinessProfileRequest;
 import com.padosi.dto.UserProfileResponse;
+import com.padosi.dto.UserResponse;
 import com.padosi.dto.UserSearchResponse;
 import com.padosi.entity.Post;
 import com.padosi.entity.User;
 import com.padosi.repository.*;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -105,7 +106,7 @@ public class UserService {
      * @param page 0-based page index
      */
     @Transactional(readOnly = true)
-    public List<PostResponse> getUserPosts(Long targetUserId, int page, int size) {
+    public List<PostResponse> getUserPosts(Long targetUserId, Long viewerUserId, int page, int size) {
         // Verify the user exists first (throws 404 if not)
         findUser(targetUserId);
 
@@ -117,7 +118,13 @@ public class UserService {
         return all.stream()
                 .skip(offset)
                 .limit(effectiveSize)
-                .map(PostResponse::from)
+                .map(post -> PostResponse.from(
+                        post,
+                        postLikeRepository.countByIdPostId(post.getId()),
+                        commentRepository.countByPostId(post.getId()),
+                        postLikeRepository.existsByIdPostIdAndIdUserId(post.getId(), viewerUserId),
+                        0.0
+                ))
                 .toList();
     }
 
@@ -129,6 +136,43 @@ public class UserService {
         return userRepository.searchActiveUsers(normalized, normalized,
                         org.springframework.data.domain.PageRequest.of(0, 8))
                 .stream().map(UserSearchResponse::from).toList();
+    }
+
+    // ── Business Profile ──────────────────────────────────────────────────────
+
+    /**
+     * Update the logged-in user's business profile.
+     * Setting accountType = "BUSINESS" enables the Professional Account badge.
+     * Setting accountType = "PERSONAL" clears all business-specific fields.
+     */
+    @Transactional
+    public UserResponse updateBusinessProfile(Long userId, UpdateBusinessProfileRequest req) {
+        User user = findUser(userId);
+
+        String newType = (req.accountType() != null) ? req.accountType().toUpperCase() : "PERSONAL";
+        if (!"PERSONAL".equals(newType) && !"BUSINESS".equals(newType)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "accountType must be PERSONAL or BUSINESS");
+        }
+
+        user.setAccountType(newType);
+
+        if ("BUSINESS".equals(newType)) {
+            if (req.companyName() != null)     user.setCompanyName(req.companyName().trim());
+            if (req.businessCategory() != null) user.setBusinessCategory(req.businessCategory().trim());
+            if (req.businessBio() != null)      user.setBusinessBio(req.businessBio().trim());
+            if (req.businessContact() != null)  user.setBusinessContact(req.businessContact().trim());
+            if (req.businessWebsite() != null)  user.setBusinessWebsite(req.businessWebsite().trim());
+        } else {
+            // Switching back to PERSONAL clears all business data
+            user.setCompanyName(null);
+            user.setBusinessCategory(null);
+            user.setBusinessBio(null);
+            user.setBusinessContact(null);
+            user.setBusinessWebsite(null);
+        }
+
+        return UserResponse.from(userRepository.save(user));
     }
 
     // ── Behaviour Score ───────────────────────────────────────────────────────

@@ -16,26 +16,41 @@ import java.time.Instant;
 public record UserProfileResponse(
         Long id,
         String fullName,
+        String handle,
         String avatarUrl,
         String bio,
         String localityName,   // e.g. "Andheri West"
         String city,           // e.g. "Mumbai"
         Instant memberSince,
         int postCount,         // how many posts this user has made
-        double behaviourScore  // Starting at 5.0, +5 per helpful vote (internal limit 1000.0)
+        double behaviourScore, // Starting at 5.0, +5 per helpful vote (internal limit 1000.0)
+        // ── Business / Professional Account fields (shown on public profile) ──
+        String accountType,       // "PERSONAL" | "BUSINESS"
+        String companyName,
+        String businessCategory,
+        String businessBio,
+        String businessContact,
+        String businessWebsite
 ) {
-    /** Factory — stats and score are pre-computed by UserService. */
+    /** Factory — stats, score, and business fields are pre-computed/passed by UserService. */
     public static UserProfileResponse from(User u, int postCount, double behaviourScore) {
         return new UserProfileResponse(
                 u.getId(),
                 u.getFullName(),
+                u.getHandle(),
                 u.getAvatarUrl(),
                 u.getBio(),
                 u.getLocality().getName(),
                 u.getLocality().getCity(),
                 u.getCreatedAt(),
                 postCount,
-                behaviourScore
+                behaviourScore,
+                u.getAccountType() != null ? u.getAccountType() : "PERSONAL",
+                u.getCompanyName(),
+                u.getBusinessCategory(),
+                u.getBusinessBio(),
+                u.getBusinessContact(),
+                u.getBusinessWebsite()
         );
     }
 }

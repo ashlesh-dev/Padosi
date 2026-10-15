@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -28,19 +30,22 @@ public class PostService {
     private final PostImageRepository postImageRepository;
     private final UserRepository userRepository;
     private final CommentHelpfulVoteRepository commentHelpfulVoteRepository;
+    private final WalletService walletService;
 
     public PostService(PostRepository postRepository,
                        PostLikeRepository postLikeRepository,
                        CommentRepository commentRepository,
                        PostImageRepository postImageRepository,
                        UserRepository userRepository,
-                       CommentHelpfulVoteRepository commentHelpfulVoteRepository) {
+                       CommentHelpfulVoteRepository commentHelpfulVoteRepository,
+                       WalletService walletService) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository = commentRepository;
         this.postImageRepository = postImageRepository;
         this.userRepository = userRepository;
         this.commentHelpfulVoteRepository = commentHelpfulVoteRepository;
+        this.walletService = walletService;
     }
 
     // ─── Feed ─────────────────────────────────────────────────────────────────
@@ -49,6 +54,10 @@ public class PostService {
      * Fetch posts near the logged-in user using their stored location and the
      * requested radius. Returns newest first with like/comment counts and
      * approximate distance. Exact coordinates are NEVER returned.
+     * <p>
+     * Ad posts that have passed their ad_expires_at are treated as regular posts
+     * (they still appear but the isAd flag becomes irrelevant — the frontend hides
+     * the Sponsored tag based on that field).
      *
      * @param radiusKm override radius in km; if null uses the user's stored preference
      * @param page     0-based page number
@@ -69,6 +78,8 @@ public class PostService {
         String search = query == null || query.isBlank() ? null : query.trim();
         String selectedCategory = category == null || category.isBlank() ? null : category.trim();
         List<Post> posts = postRepository.findNearbyFiltered(lat, lon, radiusMetres, search, selectedCategory, effectiveSize, offset);
+
+        Instant now = Instant.now();
 
         return posts.stream().map(post -> {
             long likeCount    = postLikeRepository.countByIdPostId(post.getId());
@@ -98,6 +109,36 @@ public class PostService {
             } catch (IllegalArgumentException ignored) { /* fall back to GENERAL */ }
         }
 
+        // ── Ad validation ──────────────────────────────────────────────────────
+        boolean isAd = Boolean.TRUE.equals(request.isAd());
+        Short adRadiusKm = null;
+        Short adDurationDays = null;
+        Instant adExpiresAt = null;
+
+        if (isAd) {
+            // Only BUSINESS accounts may create ad posts
+            if (!"BUSINESS".equals(user.getAccountType())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Only Professional / Business accounts can create ad posts. " +
+                        "Upgrade your account in Profile Settings first.");
+            }
+            // Validate radius
+            adRadiusKm = request.adRadiusKm();
+            if (adRadiusKm == null || (adRadiusKm != 1 && adRadiusKm != 5 && adRadiusKm != 10)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Ad radius must be 1, 5, or 10 km.");
+            }
+            // Validate duration
+            adDurationDays = request.adDurationDays();
+            if (adDurationDays == null || (adDurationDays != 7 && adDurationDays != 14 && adDurationDays != 30)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Ad duration must be 7, 14, or 30 days.");
+            }
+            adExpiresAt = Instant.now().plus(adDurationDays, ChronoUnit.DAYS);
+            int months = (adDurationDays + 29) / 30;
+            walletService.chargeListing(userId, months, "Feed advertisement (" + adDurationDays + " days)");
+        }
+
         Post post = Post.builder()
                 .author(user)
                 .locality(user.getLocality())
@@ -105,11 +146,14 @@ public class PostService {
                 .category(request.category().trim())
                 .content(request.content().trim())
                 .location(user.getLocation()) // post is at author's location
+                .isAd(isAd)
+                .adRadiusKm(adRadiusKm)
+                .adDurationDays(adDurationDays)
+                .adExpiresAt(adExpiresAt)
                 .build();
         post = postRepository.save(post);
 
         // If an image URL was provided, save it as the first PostImage
-        // (temporary until real Supabase Storage uploads are built in Step 6)
         if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
             PostImage img = PostImage.builder()
                     .post(post)
