@@ -39,6 +39,7 @@ const AppShell = () => {
     { to: '/app/services', icon: '♡', label: 'Local Services' },
     { to: '/app/lost-found', icon: '◌', label: 'Lost & Found' },
     { to: `/app/users/${user?.id}`, icon: '👤', label: 'My Profile' },
+    { to: '/app/account', icon: '⚙', label: 'Account Settings' },
   ];
 
   return (

@@ -637,22 +637,43 @@ const UserProfilePage = () => {
                 </div>
               </div>
 
-              {/* Name */}
-              <h1 style={{
-                margin: '0 0 0.2rem',
-                fontSize: '1.45rem',
-                fontFamily: 'var(--serif)',
-                color: 'var(--ink)',
-              }}>
-                {profile.fullName}
-              </h1>
+              {/* Name + Professional badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
+                <h1 style={{
+                  margin: 0,
+                  fontSize: '1.45rem',
+                  fontFamily: 'var(--serif)',
+                  color: 'var(--ink)',
+                }}>
+                  {profile.accountType === 'BUSINESS' && profile.companyName
+                    ? profile.companyName
+                    : profile.fullName}
+                </h1>
+                {profile.accountType === 'BUSINESS' && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                    background: 'linear-gradient(135deg, #0d9488, #065f46)',
+                    color: '#fff', fontSize: '0.65rem', fontWeight: '700',
+                    padding: '0.2rem 0.6rem', borderRadius: '999px',
+                    letterSpacing: '0.04em', flexShrink: 0,
+                  }}>
+                    🏢 Professional Account
+                  </span>
+                )}
+              </div>
+              {/* Show real name under company name for business accounts */}
+              {profile.accountType === 'BUSINESS' && profile.companyName && (
+                <p style={{ margin: '0 0 0.1rem', fontSize: '0.8rem', color: 'var(--muted)' }}>
+                  by {profile.fullName}
+                </p>
+              )}
 
               {/* Locality */}
               <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--muted)' }}>
                 📍 {profile.localityName}, {profile.city}
               </p>
 
-              {/* Bio */}
+              {/* Personal bio */}
               {profile.bio && (
                 <p style={{
                   margin: '0 0 0.75rem',
@@ -662,6 +683,43 @@ const UserProfilePage = () => {
                 }}>
                   "{profile.bio}"
                 </p>
+              )}
+
+              {/* Business details section */}
+              {profile.accountType === 'BUSINESS' && (
+                <div style={{
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '0.6rem',
+                  padding: '0.85rem 1rem',
+                  marginBottom: '0.75rem',
+                  display: 'flex', flexDirection: 'column', gap: '0.4rem',
+                }}>
+                  {profile.businessCategory && (
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {profile.businessCategory}
+                    </p>
+                  )}
+                  {profile.businessBio && (
+                    <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--ink)', lineHeight: 1.55 }}>
+                      {profile.businessBio}
+                    </p>
+                  )}
+                  {profile.businessContact && (
+                    <p style={{ margin: 0, fontSize: '0.82rem' }}>
+                      📞 <strong>Contact:</strong> {profile.businessContact}
+                    </p>
+                  )}
+                  {profile.businessWebsite && (
+                    <p style={{ margin: 0, fontSize: '0.82rem' }}>
+                      🌐 <strong>Website:</strong>{' '}
+                      <a href={profile.businessWebsite} target="_blank" rel="noreferrer"
+                        style={{ color: 'var(--teal)', wordBreak: 'break-all' }}>
+                        {profile.businessWebsite}
+                      </a>
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* Member since + post count */}

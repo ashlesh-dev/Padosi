@@ -18,9 +18,23 @@ public record CreatePostRequest(
                 message = "Choose a valid post category")
         String category,
 
+        /** Optional image URL from Supabase Storage. */
+        String imageUrl,
+
+        // ── Ad fields (only honoured when author is a BUSINESS account) ────────
+
+        /** Whether this is an advertisement post. Only BUSINESS accounts may set this. */
+        Boolean isAd,
+
         /**
-         * Optional image URL — TEMPORARY placeholder until Supabase Storage uploads are wired.
-         * Users paste a URL for now.
+         * Target radius for the ad in km.
+         * Allowed values: 1, 5, 10. Ignored when isAd is false.
          */
-        String imageUrl
+        Short adRadiusKm,
+
+        /**
+         * How many days to run the ad.
+         * Allowed values: 7, 14, 30. Ignored when isAd is false.
+         */
+        Short adDurationDays
 ) {}

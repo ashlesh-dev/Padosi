@@ -52,6 +52,35 @@ public class User {
     @Builder.Default
     private Role role = Role.USER;
 
+    // ── Business / Professional Account fields ────────────────────────────────
+
+    /** PERSONAL (default) or BUSINESS. */
+    @Column(name = "account_type", nullable = false, length = 20)
+    @Builder.Default
+    private String accountType = "PERSONAL";
+
+    /** Company / brand name — only set for BUSINESS accounts. */
+    @Column(name = "company_name", length = 120)
+    private String companyName;
+
+    /** Business category (e.g. Restaurant, Medical). */
+    @Column(name = "business_category", length = 80)
+    private String businessCategory;
+
+    /** Short business bio / tagline (separate from personal bio). */
+    @Column(name = "business_bio", length = 800)
+    private String businessBio;
+
+    /** Business contact info (phone, email, etc.). */
+    @Column(name = "business_contact", length = 255)
+    private String businessContact;
+
+    /** Business website URL. */
+    @Column(name = "business_website", length = 255)
+    private String businessWebsite;
+
+    // ── Location & radius ─────────────────────────────────────────────────────
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "locality_id", nullable = false)
     private Locality locality;

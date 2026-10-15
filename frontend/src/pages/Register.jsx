@@ -136,7 +136,7 @@ const Register = () => {
               style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #ddd', fontSize: '1rem' }}
             />
           </div>
-          
+
           <div style={{ marginTop: '0.5rem', padding: '1rem', backgroundColor: 'var(--cream)', borderRadius: '0.5rem', border: '1px solid #eee' }}>
             <h4 style={{ margin: '0 0 0.75rem 0', fontFamily: 'var(--font-brand)', fontSize: '1rem' }}>Location</h4>
             <p style={{ fontSize: '0.875rem', color: 'var(--muted)', margin: '0 0 1rem 0' }}>

@@ -11,6 +11,7 @@ import java.time.Instant;
 public record UserResponse(
         Long id,
         String fullName,
+        String handle,
         String email,
         String phone,
         String bio,
@@ -19,12 +20,36 @@ public record UserResponse(
         String locality,
         String city,
         Short searchRadiusKm,
+        // ── Business account fields ───────────────────────────────────────────
+        String accountType,        // "PERSONAL" | "BUSINESS"
+        String companyName,
+        String businessCategory,
+        String businessBio,
+        String businessContact,
+        String businessWebsite,
         Instant createdAt
 ) {
     /** Call inside a transaction (it reads the lazy locality). */
     public static UserResponse from(User u) {
-        return new UserResponse(u.getId(), u.getFullName(), u.getEmail(), u.getPhone(), u.getBio(),
-                u.getAvatarUrl(), u.getRole().name(), u.getLocality().getName(), u.getLocality().getCity(),
-                u.getSearchRadiusKm(), u.getCreatedAt());
+        return new UserResponse(
+                u.getId(),
+                u.getFullName(),
+                u.getHandle(),
+                u.getEmail(),
+                u.getPhone(),
+                u.getBio(),
+                u.getAvatarUrl(),
+                u.getRole().name(),
+                u.getLocality().getName(),
+                u.getLocality().getCity(),
+                u.getSearchRadiusKm(),
+                u.getAccountType() != null ? u.getAccountType() : "PERSONAL",
+                u.getCompanyName(),
+                u.getBusinessCategory(),
+                u.getBusinessBio(),
+                u.getBusinessContact(),
+                u.getBusinessWebsite(),
+                u.getCreatedAt()
+        );
     }
 }

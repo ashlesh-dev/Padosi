@@ -456,6 +456,9 @@ const PostCard = ({ post, currentUser, onDelete }) => {
     }
   };
 
+  // Ad is "active" only if adExpiresAt is in the future (or is null but isAd=true)
+  const adIsActive = post.isAd && (!post.adExpiresAt || new Date(post.adExpiresAt) > new Date());
+
   return (
     <article id={`post-${post.id}`} className="feed-card" style={{ marginBottom: '1.25rem' }}>
 
@@ -466,16 +469,41 @@ const PostCard = ({ post, currentUser, onDelete }) => {
           <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size={42} />
         </Link>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Clickable author name → profile */}
-          <Link
-            to={`/app/users/${post.authorId}`}
-            style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--ink)', lineHeight: 1.2,
-              textDecoration: 'none', display: 'block' }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--teal)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--ink)'}
-          >
-            {post.authorName}
-          </Link>
+          {/* Clickable author name → profile + business badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <Link
+              to={`/app/users/${post.authorId}`}
+              style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--ink)', lineHeight: 1.2,
+                textDecoration: 'none' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--teal)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--ink)'}
+            >
+              {post.authorCompanyName || post.authorName}
+            </Link>
+            {post.authorIsBusiness && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+                background: 'linear-gradient(135deg, #0d9488, #065f46)',
+                color: '#fff', fontSize: '0.58rem', fontWeight: '700',
+                padding: '0.12rem 0.45rem', borderRadius: '999px',
+                letterSpacing: '0.04em', flexShrink: 0,
+              }}>
+                🏢 Professional
+              </span>
+            )}
+          </div>
+          {/* Sponsored tag — shown directly below name for active ads */}
+          {adIsActive && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+              fontSize: '0.65rem', fontWeight: '700', color: '#b45309',
+              backgroundColor: '#fef3c7', border: '1px solid #fcd34d',
+              borderRadius: '4px', padding: '0.1rem 0.45rem',
+              marginTop: '0.15rem', letterSpacing: '0.03em',
+            }}>
+              📢 Sponsored
+            </div>
+          )}
           <div className="post-meta-row" style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.1rem' }}>
             <span>
               {post.localityName}
@@ -703,6 +731,12 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
 
+  // Ad post state — only usable by BUSINESS accounts
+  const isBusiness = currentUser?.accountType === 'BUSINESS';
+  const [isAd, setIsAd] = useState(false);
+  const [adRadiusKm, setAdRadiusKm] = useState(5);
+  const [adDurationDays, setAdDurationDays] = useState(7);
+
   const SUPABASE_CONFIGURED = Boolean(
     import.meta.env.VITE_SUPABASE_URL &&
     import.meta.env.VITE_SUPABASE_ANON_KEY &&
@@ -760,17 +794,26 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
         postType,
         category,
         imageUrl: finalImageUrl,
+        // Ad fields — only sent when user has toggled isAd on
+        ...(isBusiness && isAd ? {
+          isAd: true,
+          adRadiusKm: Number(adRadiusKm),
+          adDurationDays: Number(adDurationDays),
+        } : { isAd: false }),
       });
       onCreated(res.data);
       // Reset form
       setContent('');
       setPostType('GENERAL');
       setCategory('None');
+      setIsAd(false);
+      setAdRadiusKm(5);
+      setAdDurationDays(7);
       removeImage();
       setExpanded(false);
     } catch (err) {
       setError(err.response?.status >= 500
-        ? 'Post could not be saved. Run database/migrations/20261015_add_feed_categories_and_handles.sql in Supabase SQL Editor, then try again.'
+        ? 'Post could not be saved. Run the latest migration SQL in Supabase SQL Editor, then try again.'
         : err.response?.data?.message || 'Failed to create post. Please try again.');
     } finally {
       setPosting(false);
@@ -918,7 +961,7 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
             {/* Cancel */}
             <button
               type="button"
-              onClick={() => { setExpanded(false); removeImage(); setError(''); }}
+              onClick={() => { setExpanded(false); removeImage(); setError(''); setIsAd(false); }}
               style={{
                 border: '1.5px solid var(--line)', borderRadius: '0.4rem',
                 padding: '0.4rem 0.9rem', fontSize: '0.875rem', background: '#fff',
@@ -937,6 +980,83 @@ const CreatePostBox = ({ currentUser, onCreated }) => {
               {uploading ? 'Uploading…' : posting ? 'Sharing…' : 'Share'}
             </button>
           </div>
+
+          {/* ── Ad options (Business accounts only) ── */}
+          {isBusiness && (
+            <div style={{
+              marginTop: '0.75rem', padding: '0.85rem 1rem',
+              backgroundColor: isAd ? '#fffbeb' : 'var(--cream)',
+              borderRadius: '0.6rem',
+              border: `1.5px solid ${isAd ? '#fcd34d' : 'var(--line)'}`,
+              transition: 'all 0.15s',
+            }}>
+              {/* Toggle */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                <div
+                  onClick={() => setIsAd(v => !v)}
+                  style={{
+                    width: '38px', height: '20px', borderRadius: '10px', flexShrink: 0,
+                    backgroundColor: isAd ? '#f59e0b' : '#d1d5db',
+                    position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: '2px',
+                    left: isAd ? '20px' : '2px',
+                    width: '16px', height: '16px', borderRadius: '50%',
+                    backgroundColor: '#fff', transition: 'left 0.2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }} />
+                </div>
+                <span style={{ fontSize: '0.82rem', fontWeight: '600', color: isAd ? '#92400e' : 'var(--muted)' }}>
+                  📢 Is this an Advertisement?
+                </span>
+              </label>
+
+              {/* Radius + duration selectors */}
+              {isAd && (
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                  <label className="post-selector">
+                    <span style={{ color: '#92400e' }}>Target Radius</span>
+                    <select
+                      value={adRadiusKm}
+                      onChange={e => setAdRadiusKm(Number(e.target.value))}
+                      style={{
+                        border: '1.5px solid #fcd34d', borderRadius: '0.4rem',
+                        padding: '0.35rem 0.6rem', fontSize: '0.82rem',
+                        backgroundColor: '#fffbeb', cursor: 'pointer', fontFamily: 'var(--sans)',
+                      }}
+                    >
+                      <option value={1}>1 km</option>
+                      <option value={5}>5 km</option>
+                      <option value={10}>10 km</option>
+                    </select>
+                  </label>
+
+                  <label className="post-selector">
+                    <span style={{ color: '#92400e' }}>Duration</span>
+                    <select
+                      value={adDurationDays}
+                      onChange={e => setAdDurationDays(Number(e.target.value))}
+                      style={{
+                        border: '1.5px solid #fcd34d', borderRadius: '0.4rem',
+                        padding: '0.35rem 0.6rem', fontSize: '0.82rem',
+                        backgroundColor: '#fffbeb', cursor: 'pointer', fontFamily: 'var(--sans)',
+                      }}
+                    >
+                      <option value={7}>7 days</option>
+                      <option value={14}>14 days</option>
+                      <option value={30}>30 days</option>
+                    </select>
+                  </label>
+
+                  <p style={{ fontSize: '0.72rem', color: '#92400e', margin: 'auto 0 0', fontStyle: 'italic' }}>
+                    Ad will be visible within {adRadiusKm} km for {adDurationDays} days
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {!SUPABASE_CONFIGURED && (
             <p style={{ fontSize: '0.72rem', color: 'var(--muted)', margin: '0.5rem 0 0' }}>
@@ -1172,8 +1292,12 @@ const Feed = () => {
       setPosts(res.data);
       setPage(1);
       setHasMore(res.data.length === PAGE_SIZE);
-    } catch {
-      setError('Could not load posts. Is the backend running?');
+    } catch (requestError) {
+      const status = requestError.response?.status;
+      const serverMessage = requestError.response?.data?.message;
+      setError(status
+        ? `Could not load posts (${status}): ${serverMessage || 'The server rejected the request.'}`
+        : `Could not load posts: ${requestError.message || 'The backend could not be reached.'}`);
     } finally {
       setLoading(false);
     }
