@@ -62,6 +62,19 @@ export async function uploadPostImage(file, userId) {
 
 export const MARKETPLACE_BUCKET = 'marketplace-images';
 
+export const LOST_FOUND_BUCKET = 'lost-found-images';
+
+export async function uploadLostFoundImage(file, userId) {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(LOST_FOUND_BUCKET)
+    .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+  if (error) throw new Error(error.message);
+  const { data } = supabase.storage.from(LOST_FOUND_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export async function uploadMarketplaceImage(file, userId) {
   const ext = file.name.split('.').pop();
   const path = `${userId}/${Date.now()}.${ext}`;

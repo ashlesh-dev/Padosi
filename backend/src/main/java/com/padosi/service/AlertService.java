@@ -2,6 +2,9 @@ package com.padosi.service;
 
 import com.padosi.dto.AlertResponse;
 import com.padosi.dto.LostFoundResponse;
+import com.padosi.dto.CreateLostFoundRequest;
+import com.padosi.entity.LostFoundItem;
+import com.padosi.entity.enums.LostFoundKind;
 import com.padosi.entity.User;
 import com.padosi.repository.AlertRepository;
 import com.padosi.repository.LostFoundItemRepository;
@@ -12,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 /** Business logic for emergency alerts and lost & found notices. */
 @Service
@@ -54,6 +59,39 @@ public class AlertService {
                 .stream()
                 .map(LostFoundResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public LostFoundResponse createLostFound(Long userId, CreateLostFoundRequest request) {
+        User user = getUser(userId);
+        LostFoundKind kind;
+        try {
+            kind = LostFoundKind.valueOf(request.kind().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kind must be LOST or FOUND");
+        }
+        LostFoundItem item = LostFoundItem.builder()
+                .reporter(user)
+                .locality(user.getLocality())
+                .kind(kind)
+                .title(request.title().trim())
+                .category(request.category() == null || request.category().isBlank() ? "OTHER" : request.category().trim().toUpperCase(Locale.ROOT))
+                .description(request.description() == null ? null : request.description().trim())
+                .placeHint(request.placeHint() == null ? null : request.placeHint().trim())
+                .imageUrl(request.imageUrl())
+                .location(user.getLocation())
+                .build();
+        return LostFoundResponse.from(lostFoundItemRepository.save(item));
+    }
+
+    @Transactional
+    public void deleteLostFound(Long userId, Long itemId) {
+        LostFoundItem item = lostFoundItemRepository.findById(itemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lost & Found listing not found"));
+        if (!Objects.equals(item.getReporter().getId(), userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only resolve your own Lost & Found listings");
+        }
+        lostFoundItemRepository.delete(item);
     }
 
     private User getUser(Long userId) {

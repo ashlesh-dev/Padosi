@@ -132,6 +132,7 @@ create table lost_found_items (
   locality_id bigint not null references localities(id),
   kind        varchar(10) not null,                       -- LOST | FOUND
   title       varchar(150) not null,
+  category    varchar(40) not null default 'OTHER',
   description text,
   place_hint  varchar(200),                               -- e.g. "near Andheri station east exit"
   image_url   text,                                       -- single photo is enough here
